@@ -219,7 +219,7 @@ function ChatPage() {
         origem: "LinkedIn",
         respostas_json: full as unknown as Record<string, unknown>,
       };
-      const { error } = await supabase.from("leads").insert(payload);
+      const { error } = await supabase.from("leads").insert(payload as never);
       if (error) throw error;
 
       const { data: settings } = await supabase.rpc("get_public_settings");
