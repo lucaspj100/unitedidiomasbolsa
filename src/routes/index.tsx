@@ -315,8 +315,8 @@ function ChatPage() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-3 sm:px-4">
-        <div ref={scrollRef} className="flex-1 flex-col gap-3 overflow-y-auto py-4" style={{ display: "flex" }}>
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-3 sm:px-4 min-h-0">
+        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-4">
           {messages.map((m, i) => (<Bubble key={i} from={m.from}>{m.text}</Bubble>))}
 
           {step?.kind === "schedule" && !bookedAt && (
