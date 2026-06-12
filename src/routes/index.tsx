@@ -170,7 +170,7 @@ function ChatPage() {
     if (opts?.classificacao) payload.classificacao_lead = opts.classificacao;
     if (opts?.alta !== undefined) payload.alta_prioridade = opts.alta;
     try {
-      const { data, error } = await supabase.rpc("save_lead_progress", { p_id: leadId, p_data: payload });
+      const { data, error } = await supabase.rpc("save_lead_progress", { p_id: leadId ?? (undefined as unknown as string), p_data: payload as never });
       if (error) throw error;
       if (typeof data === "string" && !leadId) setLeadId(data);
     } catch (e) {
