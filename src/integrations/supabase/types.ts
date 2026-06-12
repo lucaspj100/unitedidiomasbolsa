@@ -32,6 +32,41 @@ export type Database = {
         }
         Relationships: []
       }
+      interview_slots: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string | null
+          notes: string | null
+          scheduled_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_at: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_slots_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           alta_prioridade: boolean
@@ -41,6 +76,7 @@ export type Database = {
           decisao_entrevista: string | null
           email: string
           empresa: string | null
+          etapa_atual: string | null
           id: string
           impacto_ingles: string | null
           motivo_ingles: string | null
@@ -51,7 +87,9 @@ export type Database = {
           perdeu_oportunidade: string | null
           profissao: string | null
           respostas_json: Json
+          scheduled_at: string | null
           status: string
+          ultima_interacao: string
           whatsapp: string
         }
         Insert: {
@@ -62,6 +100,7 @@ export type Database = {
           decisao_entrevista?: string | null
           email: string
           empresa?: string | null
+          etapa_atual?: string | null
           id?: string
           impacto_ingles?: string | null
           motivo_ingles?: string | null
@@ -72,7 +111,9 @@ export type Database = {
           perdeu_oportunidade?: string | null
           profissao?: string | null
           respostas_json?: Json
+          scheduled_at?: string | null
           status?: string
+          ultima_interacao?: string
           whatsapp: string
         }
         Update: {
@@ -83,6 +124,7 @@ export type Database = {
           decisao_entrevista?: string | null
           email?: string
           empresa?: string | null
+          etapa_atual?: string | null
           id?: string
           impacto_ingles?: string | null
           motivo_ingles?: string | null
@@ -93,7 +135,9 @@ export type Database = {
           perdeu_oportunidade?: string | null
           profissao?: string | null
           respostas_json?: Json
+          scheduled_at?: string | null
           status?: string
+          ultima_interacao?: string
           whatsapp?: string
         }
         Relationships: []
@@ -124,10 +168,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_interview_slot: {
+        Args: { p_lead_id: string; p_slot_id: string }
+        Returns: string
+      }
       claim_admin: { Args: never; Returns: boolean }
+      get_available_slots: {
+        Args: never
+        Returns: {
+          id: string
+          scheduled_at: string
+        }[]
+      }
       get_public_settings: {
         Args: never
         Returns: {
+          brand_name: string
+          brand_subtitle: string
+          logo_url: string
           scheduling_link: string
           whatsapp_number: string
         }[]
@@ -138,6 +196,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      save_lead_progress: {
+        Args: { p_data: Json; p_id: string }
+        Returns: string
       }
     }
     Enums: {
