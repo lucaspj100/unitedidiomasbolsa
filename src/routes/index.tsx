@@ -345,7 +345,7 @@ function ChatPage() {
         </div>
 
         {showControls && (
-          <div ref={controlsRef} className="sticky bottom-0 -mx-3 border-t border-border bg-card/95 px-3 py-3 backdrop-blur sm:-mx-4 sm:px-4">
+          <div ref={controlsRef} className="-mx-3 border-t border-border bg-card/95 px-3 py-3 backdrop-blur sm:-mx-4 sm:px-4">
             {step?.kind === "intro" && (
               <Button size="lg" className="w-full" onClick={startFlow}>Começar avaliação</Button>
             )}
