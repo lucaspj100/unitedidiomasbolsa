@@ -10,13 +10,24 @@ import { GraduationCap } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Admin · Assistente de Bolsa United Idiomas" },
-      { name: "description", content: "Acesso ao painel administrativo de leads." },
+      { title: "Entrar · United Idiomas" },
+      { name: "description", content: "Acesso da equipe." },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: AuthPage,
 });
+
+async function redirectByRole(navigate: ReturnType<typeof useNavigate>) {
+  await supabase.rpc("claim_admin");
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return;
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", u.user.id);
+  if ((roles ?? []).some(r => r.role === "admin")) { navigate({ to: "/admin" }); return; }
+  const { data: vend } = await supabase.from("vendedores").select("id, ativo").eq("user_id", u.user.id).maybeSingle();
+  if (vend && vend.ativo) { navigate({ to: "/vendedor" }); return; }
+  navigate({ to: "/vendedor" }); // mostra a tela de "acesso não disponível"
+}
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -24,16 +35,10 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [allowedEmail, setAllowedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/admin" });
-    });
-    void supabase.rpc("get_public_settings").then(({ data }) => {
-      const s = Array.isArray(data) && data[0] ? data[0] : null;
-      // allowed_admin_email not exposed publicly; we just guard client-side messaging.
-      if (s) setAllowedEmail(null);
+      if (data.session) void redirectByRole(navigate);
     });
   }, [navigate]);
 
@@ -45,21 +50,15 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/admin" },
+          options: { emailRedirectTo: window.location.origin + "/auth" },
         });
         if (error) throw error;
-        const { data: claim } = await supabase.rpc("claim_admin");
-        if (!claim) {
-          await supabase.auth.signOut();
-          throw new Error("Este e-mail não está autorizado para criar uma conta de administrador.");
-        }
-        toast.success("Conta de administrador criada.");
+        toast.success("Conta criada. Faça login para continuar.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        await supabase.rpc("claim_admin");
       }
-      navigate({ to: "/admin" });
+      await redirectByRole(navigate);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Falha ao autenticar";
       toast.error(msg);
@@ -72,37 +71,31 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="shadow-card w-full max-w-md rounded-2xl border border-border bg-card p-6">
         <div className="mb-5 flex items-center gap-2">
-          <div className="rounded-lg gradient-hero p-2 text-primary-foreground">
-            <GraduationCap className="h-5 w-5" />
-          </div>
+          <div className="rounded-lg gradient-hero p-2 text-primary-foreground"><GraduationCap className="h-5 w-5" /></div>
           <div>
-            <h1 className="text-base font-semibold">Painel Admin · United Idiomas</h1>
-            <p className="text-xs text-muted-foreground">Acesso restrito à equipe consultora.</p>
+            <h1 className="text-base font-semibold">Painel · United Idiomas</h1>
+            <p className="text-xs text-muted-foreground">Acesso restrito à equipe.</p>
           </div>
         </div>
         <form onSubmit={submit} className="grid gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="email">E-mail</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="password">Senha</Label>
-            <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input id="password" type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} />
           </div>
           <Button type="submit" disabled={loading}>
             {loading ? "Carregando…" : mode === "signin" ? "Entrar" : "Criar conta"}
           </Button>
         </form>
-        <button
-          type="button"
-          onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
-          className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-foreground"
-        >
+        <button type="button" onClick={() => setMode(m => m === "signin" ? "signup" : "signin")}
+          className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-foreground">
           {mode === "signin" ? "Primeiro acesso? Criar conta" : "Já tem conta? Entrar"}
         </button>
         <p className="mt-4 text-center text-[11px] text-muted-foreground">
-          Apenas o e-mail autorizado pelo administrador principal pode criar conta.
-          {allowedEmail && <> (<span className="font-medium">{allowedEmail}</span>)</>}
+          Consultores: use o e-mail cadastrado pela administração. Você foi convidado por e-mail.
         </p>
       </div>
     </div>
