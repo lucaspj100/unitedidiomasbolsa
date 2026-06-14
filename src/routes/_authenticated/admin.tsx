@@ -435,6 +435,117 @@ function HorariosTab() {
   );
 }
 
+// -------- Equipe (vendedores) tab --------
+type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; user_id: string | null; created_at: string };
+
+function EquipeTab() {
+  const [rows, setRows] = useState<Vendedor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", slug: "" });
+  const [creating, setCreating] = useState(false);
+  const invite = useServerFn(inviteVendedor);
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase.from("vendedores").select("*").order("created_at", { ascending: false });
+    if (error) toast.error(error.message); else setRows((data ?? []) as Vendedor[]);
+    setLoading(false);
+  }
+  useEffect(() => { void load(); }, []);
+
+  function slugify(s: string) {
+    return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
+  }
+
+  async function create() {
+    if (!form.nome || !form.email) { toast.error("Preencha nome e e-mail."); return; }
+    const slug = (form.slug || slugify(form.nome)).trim();
+    if (!slug) { toast.error("Slug inválido."); return; }
+    setCreating(true);
+    try {
+      const { error } = await supabase.from("vendedores").insert({
+        nome: form.nome, email: form.email.toLowerCase().trim(),
+        whatsapp: form.whatsapp || null, slug, ativo: true,
+      });
+      if (error) throw error;
+      try {
+        await invite({ data: { email: form.email.toLowerCase().trim(), redirectTo: `${window.location.origin}/auth` } });
+        toast.success("Vendedor cadastrado e convite enviado por e-mail.");
+      } catch (e) {
+        toast.warning("Vendedor cadastrado, mas falha ao enviar convite: " + (e instanceof Error ? e.message : "erro"));
+      }
+      setForm({ nome: "", email: "", whatsapp: "", slug: "" });
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao cadastrar");
+    } finally { setCreating(false); }
+  }
+
+  async function toggleAtivo(v: Vendedor) {
+    const { error } = await supabase.from("vendedores").update({ ativo: !v.ativo }).eq("id", v.id);
+    if (error) toast.error(error.message); else { toast.success(v.ativo ? "Inativado" : "Ativado"); await load(); }
+  }
+  async function remove(v: Vendedor) {
+    if (!confirm(`Remover ${v.nome}? Leads e agendamentos antigos serão mantidos.`)) return;
+    const { error } = await supabase.from("vendedores").delete().eq("id", v.id);
+    if (error) toast.error(error.message); else { toast.success("Removido"); await load(); }
+  }
+  async function resend(v: Vendedor) {
+    try {
+      await invite({ data: { email: v.email, redirectTo: `${window.location.origin}/auth` } });
+      toast.success("Convite reenviado.");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Falha ao reenviar"); }
+  }
+
+  return (
+    <div className="mt-4 grid gap-6">
+      <div className="shadow-card rounded-xl border border-border bg-card p-4">
+        <div className="mb-3 flex items-center gap-2"><Users className="h-4 w-4" /><h2 className="text-sm font-semibold">Cadastrar vendedor</h2></div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div><Label className="text-xs">Nome completo</Label><Input value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value, slug: f.slug || slugify(e.target.value)}))} /></div>
+          <div><Label className="text-xs">E-mail</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} /></div>
+          <div><Label className="text-xs">WhatsApp</Label><Input value={form.whatsapp} onChange={e => setForm(f => ({...f, whatsapp: e.target.value}))} placeholder="(11) 99999-9999" /></div>
+          <div><Label className="text-xs">Slug do link</Label><Input value={form.slug} onChange={e => setForm(f => ({...f, slug: slugify(e.target.value)}))} placeholder="maria-souza" /></div>
+        </div>
+        <Button className="mt-3" disabled={creating} onClick={create}><Plus className="mr-2 h-4 w-4" />{creating ? "Cadastrando…" : "Cadastrar e enviar convite"}</Button>
+      </div>
+
+      <div className="shadow-card overflow-x-auto rounded-xl border border-border bg-card">
+        <table className="min-w-full text-sm">
+          <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+            <tr><th className="px-3 py-2">Vendedor</th><th className="px-3 py-2">E-mail</th><th className="px-3 py-2">Link</th><th className="px-3 py-2">Status</th><th className="px-3 py-2"></th></tr>
+          </thead>
+          <tbody>
+            {loading && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>}
+            {!loading && rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Nenhum vendedor cadastrado.</td></tr>}
+            {rows.map(v => {
+              const link = typeof window !== "undefined" ? `${window.location.origin}/agendar/${v.slug}` : `/agendar/${v.slug}`;
+              return (
+                <tr key={v.id} className="border-t border-border align-top">
+                  <td className="px-3 py-2"><div className="font-medium">{v.nome}</div><div className="text-xs text-muted-foreground">{v.whatsapp ?? "—"}</div></td>
+                  <td className="px-3 py-2 text-xs">{v.email}{!v.user_id && <Badge variant="secondary" className="ml-2">aguardando aceitar convite</Badge>}</td>
+                  <td className="px-3 py-2 text-xs"><span className="font-mono">/agendar/{v.slug}</span></td>
+                  <td className="px-3 py-2">{v.ativo ? <Badge>Ativo</Badge> : <Badge variant="secondary">Inativo</Badge>}</td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="ghost" title="Copiar link" onClick={() => { void navigator.clipboard.writeText(link); toast.success("Link copiado"); }}><Copy className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" title="Abrir link" onClick={() => window.open(link, "_blank")}><ExternalLink className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" title="Reenviar convite" onClick={() => void resend(v)}><Mail className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => void toggleAtivo(v)}>{v.ativo ? "Inativar" : "Ativar"}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => void remove(v)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+
 // -------- Helpers --------
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
