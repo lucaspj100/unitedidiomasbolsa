@@ -40,6 +40,7 @@ export type Database = {
           notes: string | null
           scheduled_at: string
           updated_at: string
+          vendedor_id: string | null
         }
         Insert: {
           created_at?: string
@@ -48,6 +49,7 @@ export type Database = {
           notes?: string | null
           scheduled_at: string
           updated_at?: string
+          vendedor_id?: string | null
         }
         Update: {
           created_at?: string
@@ -56,6 +58,7 @@ export type Database = {
           notes?: string | null
           scheduled_at?: string
           updated_at?: string
+          vendedor_id?: string | null
         }
         Relationships: [
           {
@@ -63,6 +66,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_slots_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores"
             referencedColumns: ["id"]
           },
         ]
@@ -90,6 +100,7 @@ export type Database = {
           scheduled_at: string | null
           status: string
           ultima_interacao: string
+          vendedor_id: string | null
           whatsapp: string
         }
         Insert: {
@@ -114,6 +125,7 @@ export type Database = {
           scheduled_at?: string | null
           status?: string
           ultima_interacao?: string
+          vendedor_id?: string | null
           whatsapp: string
         }
         Update: {
@@ -138,9 +150,18 @@ export type Database = {
           scheduled_at?: string | null
           status?: string
           ultima_interacao?: string
+          vendedor_id?: string | null
           whatsapp?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "vendedores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -163,6 +184,42 @@ export type Database = {
         }
         Relationships: []
       }
+      vendedores: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          slug: string
+          updated_at: string
+          user_id: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+          slug: string
+          updated_at?: string
+          user_id?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          slug?: string
+          updated_at?: string
+          user_id?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -173,8 +230,16 @@ export type Database = {
         Returns: string
       }
       claim_admin: { Args: never; Returns: boolean }
+      current_vendedor_id: { Args: never; Returns: string }
       get_available_slots: {
         Args: never
+        Returns: {
+          id: string
+          scheduled_at: string
+        }[]
+      }
+      get_available_slots_by_vendedor: {
+        Args: { p_vendedor_id: string }
         Returns: {
           id: string
           scheduled_at: string
@@ -188,6 +253,14 @@ export type Database = {
           logo_url: string
           scheduling_link: string
           whatsapp_number: string
+        }[]
+      }
+      get_vendedor_by_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          ativo: boolean
+          id: string
+          nome: string
         }[]
       }
       has_role: {
