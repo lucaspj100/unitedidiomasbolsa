@@ -128,14 +128,16 @@ function AdminPage() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         {isAdmin && (
           <Tabs defaultValue="leads">
-            <TabsList>
+            <TabsList className="flex flex-wrap">
               <TabsTrigger value="leads">Leads</TabsTrigger>
               <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
               <TabsTrigger value="horarios">Horários</TabsTrigger>
+              <TabsTrigger value="equipe">Equipe</TabsTrigger>
             </TabsList>
             <TabsContent value="leads"><LeadsTab /></TabsContent>
             <TabsContent value="agendamentos"><AgendamentosTab /></TabsContent>
             <TabsContent value="horarios"><HorariosTab /></TabsContent>
+            <TabsContent value="equipe"><EquipeTab /></TabsContent>
           </Tabs>
         )}
       </main>
