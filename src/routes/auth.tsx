@@ -24,9 +24,15 @@ async function redirectByRole(navigate: ReturnType<typeof useNavigate>) {
   if (!u.user) return;
   const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", u.user.id);
   if ((roles ?? []).some(r => r.role === "admin")) { navigate({ to: "/admin" }); return; }
-  const { data: vend } = await supabase.from("vendedores").select("id, ativo").eq("user_id", u.user.id).maybeSingle();
-  if (vend && vend.ativo) { navigate({ to: "/vendedor" }); return; }
-  navigate({ to: "/vendedor" }); // mostra a tela de "acesso não disponível"
+  const { data: vend } = await supabase.from("vendedores").select("id, ativo, must_change_password").eq("user_id", u.user.id).maybeSingle();
+  if (!vend) { navigate({ to: "/vendedor" }); return; }
+  if (!vend.ativo) {
+    await supabase.auth.signOut();
+    toast.error("Seu acesso está inativo. Entre em contato com o administrador.");
+    return;
+  }
+  if (vend.must_change_password) { navigate({ to: "/trocar-senha" }); return; }
+  navigate({ to: "/vendedor" });
 }
 
 function AuthPage() {
