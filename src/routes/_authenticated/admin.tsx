@@ -353,26 +353,41 @@ function Section({ title, loading, rows, onCancel }: { title: string; loading: b
 // -------- Horários tab --------
 function HorariosTab() {
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [vendedores, setVendedores] = useState<VendedorOpt[]>([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState("");
   const [times, setTimes] = useState("19:00, 20:00");
+  const [vendedorId, setVendedorId] = useState<string>("");
+  const [filterVendedor, setFilterVendedor] = useState<string>("all");
 
   useEffect(() => { void load(); }, []);
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("interview_slots").select("*").gte("scheduled_at", new Date().toISOString()).order("scheduled_at");
-    setSlots((data ?? []) as Slot[]);
+    const [{ data: slotsData }, { data: vendData }] = await Promise.all([
+      supabase.from("interview_slots").select("*").gte("scheduled_at", new Date().toISOString()).order("scheduled_at"),
+      supabase.from("vendedores").select("id,nome,ativo").order("nome"),
+    ]);
+    setSlots((slotsData ?? []) as Slot[]);
+    setVendedores((vendData ?? []) as VendedorOpt[]);
     setLoading(false);
   }
 
+  const vendNameById = useMemo(() => new Map(vendedores.map(v => [v.id, v.nome])), [vendedores]);
+  const filteredSlots = useMemo(() => {
+    if (filterVendedor === "all") return slots;
+    if (filterVendedor === "legacy") return slots.filter(s => !s.vendedor_id);
+    return slots.filter(s => s.vendedor_id === filterVendedor);
+  }, [slots, filterVendedor]);
+
   async function add() {
+    if (!vendedorId) { toast.error("Selecione o vendedor."); return; }
     if (!date) { toast.error("Selecione uma data."); return; }
     const list = times.split(/[,;\s]+/).map((t) => t.trim()).filter(Boolean);
     if (!list.length) { toast.error("Informe ao menos um horário."); return; }
     const rows = list.map((t) => {
       const [h, m] = t.split(":");
       const d = new Date(`${date}T${(h ?? "0").padStart(2, "0")}:${(m ?? "00").padStart(2, "0")}:00`);
-      return { scheduled_at: d.toISOString() };
+      return { scheduled_at: d.toISOString(), vendedor_id: vendedorId };
     });
     const { error } = await supabase.from("interview_slots").insert(rows);
     if (error) toast.error(error.message);
@@ -400,25 +415,50 @@ function HorariosTab() {
     <div className="mt-4 grid gap-6">
       <div className="shadow-card rounded-xl border border-border bg-card p-4">
         <div className="mb-2 flex items-center gap-2"><CalendarClock className="h-4 w-4" /><h2 className="text-sm font-semibold">Cadastrar horários</h2></div>
-        <p className="mb-3 text-xs text-muted-foreground">Cada entrevista ocupa 1 hora. Os candidatos veem apenas horários livres nos próximos 4 dias.</p>
-        <div className="grid gap-3 sm:grid-cols-[180px_1fr_auto]">
+        <p className="mb-3 text-xs text-muted-foreground">Cada horário pertence a um vendedor. Os candidatos veem apenas horários livres do consultor cujo link abriram, nos próximos 4 dias.</p>
+        <div className="grid gap-3 sm:grid-cols-[1fr_180px_1fr_auto]">
+          <div>
+            <Label className="text-xs">Vendedor</Label>
+            <Select value={vendedorId} onValueChange={setVendedorId}>
+              <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+              <SelectContent>
+                {vendedores.filter(v => v.ativo).map(v => <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div><Label className="text-xs">Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label className="text-xs">Horários (separados por vírgula)</Label><Input value={times} onChange={(e) => setTimes(e.target.value)} placeholder="19:00, 20:00, 21:00" /></div>
           <div className="flex items-end"><Button onClick={add}><Plus className="mr-2 h-4 w-4" />Adicionar</Button></div>
         </div>
       </div>
 
+      <div className="flex items-end gap-3">
+        <div className="w-64">
+          <Label className="text-xs">Filtrar por vendedor</Label>
+          <Select value={filterVendedor} onValueChange={setFilterVendedor}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="legacy">Sem vendedor (legado)</SelectItem>
+              {vendedores.map(v => <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="text-xs text-muted-foreground">{filteredSlots.length} horário(s)</p>
+      </div>
+
       <div className="shadow-card overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-            <tr><th className="px-3 py-2">Data e hora</th><th className="px-3 py-2">Status</th><th className="px-3 py-2"></th></tr>
+            <tr><th className="px-3 py-2">Data e hora</th><th className="px-3 py-2">Vendedor</th><th className="px-3 py-2">Status</th><th className="px-3 py-2"></th></tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
-            {!loading && slots.length === 0 && (<tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Nenhum horário cadastrado.</td></tr>)}
-            {slots.map((s) => (
+            {loading && (<tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
+            {!loading && filteredSlots.length === 0 && (<tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Nenhum horário.</td></tr>)}
+            {filteredSlots.map((s) => (
               <tr key={s.id} className="border-t border-border">
                 <td className="px-3 py-2 text-xs">{fmtDateTime(s.scheduled_at)}</td>
+                <td className="px-3 py-2 text-xs">{s.vendedor_id ? (vendNameById.get(s.vendedor_id) ?? "—") : <span className="text-muted-foreground">— legado —</span>}</td>
                 <td className="px-3 py-2">{s.lead_id ? <Badge>Ocupado</Badge> : <Badge variant="secondary">Disponível</Badge>}</td>
                 <td className="px-3 py-2 text-right">
                   {s.lead_id ? (
@@ -435,6 +475,7 @@ function HorariosTab() {
     </div>
   );
 }
+
 
 // -------- Equipe (vendedores) tab --------
 type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; user_id: string | null; created_at: string; must_change_password: boolean };
