@@ -57,7 +57,8 @@ type Lead = {
   respostas_json: Record<string, unknown>;
 };
 
-type Slot = { id: string; scheduled_at: string; lead_id: string | null; notes: string | null };
+type Slot = { id: string; scheduled_at: string; lead_id: string | null; notes: string | null; vendedor_id: string | null };
+type VendedorOpt = { id: string; nome: string; ativo: boolean };
 
 const STATUSES = [
   "Cadastro iniciado",
