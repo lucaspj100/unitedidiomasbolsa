@@ -52,9 +52,10 @@ function VendedorPage() {
       const { data } = await supabase.from("vendedores").select("*").eq("user_id", u.user.id).maybeSingle();
       if (!data) { setV("denied"); return; }
       if (!data.ativo) { setV("denied"); return; }
+      if ((data as Vendedor).must_change_password) { navigate({ to: "/trocar-senha", replace: true }); return; }
       setV(data as Vendedor);
     })();
-  }, []);
+  }, [navigate]);
 
   async function signOut() {
     await supabase.auth.signOut();
