@@ -20,7 +20,7 @@ import {
   Download, LogOut, MessageCircle, Settings, Star, Eye, Trash2, Plus, CalendarClock, Users, Copy, ExternalLink, Mail,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { inviteVendedor } from "@/lib/vendedores.functions";
+import { createVendedorAccount, resetVendedorPassword } from "@/lib/vendedores.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
