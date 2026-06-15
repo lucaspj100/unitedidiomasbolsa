@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/vendedor")({
   component: VendedorPage,
 });
 
-type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean };
+type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; must_change_password: boolean };
 type Lead = {
   id: string; nome: string; whatsapp: string; email: string; cidade_estado: string | null;
   profissao: string | null; nivel_ingles: string | null; status: string; classificacao_lead: string;
