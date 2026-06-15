@@ -20,7 +20,7 @@ import {
   Download, LogOut, MessageCircle, Settings, Star, Eye, Trash2, Plus, CalendarClock, Users, Copy, ExternalLink, Mail,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { inviteVendedor } from "@/lib/vendedores.functions";
+import { createVendedorAccount, resetVendedorPassword } from "@/lib/vendedores.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -57,7 +57,8 @@ type Lead = {
   respostas_json: Record<string, unknown>;
 };
 
-type Slot = { id: string; scheduled_at: string; lead_id: string | null; notes: string | null };
+type Slot = { id: string; scheduled_at: string; lead_id: string | null; notes: string | null; vendedor_id: string | null };
+type VendedorOpt = { id: string; nome: string; ativo: boolean };
 
 const STATUSES = [
   "Cadastro iniciado",
@@ -352,26 +353,41 @@ function Section({ title, loading, rows, onCancel }: { title: string; loading: b
 // -------- Horários tab --------
 function HorariosTab() {
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [vendedores, setVendedores] = useState<VendedorOpt[]>([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState("");
   const [times, setTimes] = useState("19:00, 20:00");
+  const [vendedorId, setVendedorId] = useState<string>("");
+  const [filterVendedor, setFilterVendedor] = useState<string>("all");
 
   useEffect(() => { void load(); }, []);
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("interview_slots").select("*").gte("scheduled_at", new Date().toISOString()).order("scheduled_at");
-    setSlots((data ?? []) as Slot[]);
+    const [{ data: slotsData }, { data: vendData }] = await Promise.all([
+      supabase.from("interview_slots").select("*").gte("scheduled_at", new Date().toISOString()).order("scheduled_at"),
+      supabase.from("vendedores").select("id,nome,ativo").order("nome"),
+    ]);
+    setSlots((slotsData ?? []) as Slot[]);
+    setVendedores((vendData ?? []) as VendedorOpt[]);
     setLoading(false);
   }
 
+  const vendNameById = useMemo(() => new Map(vendedores.map(v => [v.id, v.nome])), [vendedores]);
+  const filteredSlots = useMemo(() => {
+    if (filterVendedor === "all") return slots;
+    if (filterVendedor === "legacy") return slots.filter(s => !s.vendedor_id);
+    return slots.filter(s => s.vendedor_id === filterVendedor);
+  }, [slots, filterVendedor]);
+
   async function add() {
+    if (!vendedorId) { toast.error("Selecione o vendedor."); return; }
     if (!date) { toast.error("Selecione uma data."); return; }
     const list = times.split(/[,;\s]+/).map((t) => t.trim()).filter(Boolean);
     if (!list.length) { toast.error("Informe ao menos um horário."); return; }
     const rows = list.map((t) => {
       const [h, m] = t.split(":");
       const d = new Date(`${date}T${(h ?? "0").padStart(2, "0")}:${(m ?? "00").padStart(2, "0")}:00`);
-      return { scheduled_at: d.toISOString() };
+      return { scheduled_at: d.toISOString(), vendedor_id: vendedorId };
     });
     const { error } = await supabase.from("interview_slots").insert(rows);
     if (error) toast.error(error.message);
@@ -399,25 +415,50 @@ function HorariosTab() {
     <div className="mt-4 grid gap-6">
       <div className="shadow-card rounded-xl border border-border bg-card p-4">
         <div className="mb-2 flex items-center gap-2"><CalendarClock className="h-4 w-4" /><h2 className="text-sm font-semibold">Cadastrar horários</h2></div>
-        <p className="mb-3 text-xs text-muted-foreground">Cada entrevista ocupa 1 hora. Os candidatos veem apenas horários livres nos próximos 4 dias.</p>
-        <div className="grid gap-3 sm:grid-cols-[180px_1fr_auto]">
+        <p className="mb-3 text-xs text-muted-foreground">Cada horário pertence a um vendedor. Os candidatos veem apenas horários livres do consultor cujo link abriram, nos próximos 4 dias.</p>
+        <div className="grid gap-3 sm:grid-cols-[1fr_180px_1fr_auto]">
+          <div>
+            <Label className="text-xs">Vendedor</Label>
+            <Select value={vendedorId} onValueChange={setVendedorId}>
+              <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+              <SelectContent>
+                {vendedores.filter(v => v.ativo).map(v => <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div><Label className="text-xs">Data</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label className="text-xs">Horários (separados por vírgula)</Label><Input value={times} onChange={(e) => setTimes(e.target.value)} placeholder="19:00, 20:00, 21:00" /></div>
           <div className="flex items-end"><Button onClick={add}><Plus className="mr-2 h-4 w-4" />Adicionar</Button></div>
         </div>
       </div>
 
+      <div className="flex items-end gap-3">
+        <div className="w-64">
+          <Label className="text-xs">Filtrar por vendedor</Label>
+          <Select value={filterVendedor} onValueChange={setFilterVendedor}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="legacy">Sem vendedor (legado)</SelectItem>
+              {vendedores.map(v => <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="text-xs text-muted-foreground">{filteredSlots.length} horário(s)</p>
+      </div>
+
       <div className="shadow-card overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-            <tr><th className="px-3 py-2">Data e hora</th><th className="px-3 py-2">Status</th><th className="px-3 py-2"></th></tr>
+            <tr><th className="px-3 py-2">Data e hora</th><th className="px-3 py-2">Vendedor</th><th className="px-3 py-2">Status</th><th className="px-3 py-2"></th></tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
-            {!loading && slots.length === 0 && (<tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Nenhum horário cadastrado.</td></tr>)}
-            {slots.map((s) => (
+            {loading && (<tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
+            {!loading && filteredSlots.length === 0 && (<tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Nenhum horário.</td></tr>)}
+            {filteredSlots.map((s) => (
               <tr key={s.id} className="border-t border-border">
                 <td className="px-3 py-2 text-xs">{fmtDateTime(s.scheduled_at)}</td>
+                <td className="px-3 py-2 text-xs">{s.vendedor_id ? (vendNameById.get(s.vendedor_id) ?? "—") : <span className="text-muted-foreground">— legado —</span>}</td>
                 <td className="px-3 py-2">{s.lead_id ? <Badge>Ocupado</Badge> : <Badge variant="secondary">Disponível</Badge>}</td>
                 <td className="px-3 py-2 text-right">
                   {s.lead_id ? (
@@ -435,15 +476,25 @@ function HorariosTab() {
   );
 }
 
+
 // -------- Equipe (vendedores) tab --------
-type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; user_id: string | null; created_at: string };
+type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; user_id: string | null; created_at: string; must_change_password: boolean };
+
+function genPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
 
 function EquipeTab() {
   const [rows, setRows] = useState<Vendedor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", slug: "" });
+  const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", slug: "", password: genPassword() });
   const [creating, setCreating] = useState(false);
-  const invite = useServerFn(inviteVendedor);
+  const [shownCred, setShownCred] = useState<{ email: string; password: string } | null>(null);
+  const createAccount = useServerFn(createVendedorAccount);
+  const resetPwd = useServerFn(resetVendedorPassword);
 
   async function load() {
     setLoading(true);
@@ -459,22 +510,20 @@ function EquipeTab() {
 
   async function create() {
     if (!form.nome || !form.email) { toast.error("Preencha nome e e-mail."); return; }
+    if (form.password.length < 8) { toast.error("Senha provisória precisa ter ao menos 8 caracteres."); return; }
     const slug = (form.slug || slugify(form.nome)).trim();
     if (!slug) { toast.error("Slug inválido."); return; }
     setCreating(true);
+    const email = form.email.toLowerCase().trim();
     try {
       const { error } = await supabase.from("vendedores").insert({
-        nome: form.nome, email: form.email.toLowerCase().trim(),
-        whatsapp: form.whatsapp || null, slug, ativo: true,
+        nome: form.nome, email, whatsapp: form.whatsapp || null, slug, ativo: true,
       });
       if (error) throw error;
-      try {
-        await invite({ data: { email: form.email.toLowerCase().trim(), redirectTo: `${window.location.origin}/auth` } });
-        toast.success("Vendedor cadastrado e convite enviado por e-mail.");
-      } catch (e) {
-        toast.warning("Vendedor cadastrado, mas falha ao enviar convite: " + (e instanceof Error ? e.message : "erro"));
-      }
-      setForm({ nome: "", email: "", whatsapp: "", slug: "" });
+      await createAccount({ data: { email, password: form.password } });
+      setShownCred({ email, password: form.password });
+      toast.success("Vendedor cadastrado. Envie a senha provisória pelo WhatsApp.");
+      setForm({ nome: "", email: "", whatsapp: "", slug: "", password: genPassword() });
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao cadastrar");
@@ -490,24 +539,36 @@ function EquipeTab() {
     const { error } = await supabase.from("vendedores").delete().eq("id", v.id);
     if (error) toast.error(error.message); else { toast.success("Removido"); await load(); }
   }
-  async function resend(v: Vendedor) {
+  async function resetPassword(v: Vendedor) {
+    const pwd = genPassword();
+    if (!confirm(`Gerar nova senha provisória para ${v.nome}? A senha atual deixará de funcionar.`)) return;
     try {
-      await invite({ data: { email: v.email, redirectTo: `${window.location.origin}/auth` } });
-      toast.success("Convite reenviado.");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Falha ao reenviar"); }
+      await resetPwd({ data: { vendedorId: v.id, password: pwd } });
+      setShownCred({ email: v.email, password: pwd });
+      toast.success("Senha redefinida.");
+      await load();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Falha ao redefinir senha"); }
   }
 
   return (
     <div className="mt-4 grid gap-6">
       <div className="shadow-card rounded-xl border border-border bg-card p-4">
         <div className="mb-3 flex items-center gap-2"><Users className="h-4 w-4" /><h2 className="text-sm font-semibold">Cadastrar vendedor</h2></div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div><Label className="text-xs">Nome completo</Label><Input value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value, slug: f.slug || slugify(e.target.value)}))} /></div>
           <div><Label className="text-xs">E-mail</Label><Input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} /></div>
           <div><Label className="text-xs">WhatsApp</Label><Input value={form.whatsapp} onChange={e => setForm(f => ({...f, whatsapp: e.target.value}))} placeholder="(11) 99999-9999" /></div>
           <div><Label className="text-xs">Slug do link</Label><Input value={form.slug} onChange={e => setForm(f => ({...f, slug: slugify(e.target.value)}))} placeholder="maria-souza" /></div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs">Senha provisória</Label>
+            <div className="flex gap-2">
+              <Input value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))} className="font-mono" />
+              <Button type="button" variant="outline" onClick={() => setForm(f => ({...f, password: genPassword()}))}>Gerar</Button>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">O vendedor será obrigado a trocar a senha no primeiro acesso.</p>
+          </div>
         </div>
-        <Button className="mt-3" disabled={creating} onClick={create}><Plus className="mr-2 h-4 w-4" />{creating ? "Cadastrando…" : "Cadastrar e enviar convite"}</Button>
+        <Button className="mt-3" disabled={creating} onClick={create}><Plus className="mr-2 h-4 w-4" />{creating ? "Cadastrando…" : "Cadastrar e criar acesso"}</Button>
       </div>
 
       <div className="shadow-card overflow-x-auto rounded-xl border border-border bg-card">
@@ -523,14 +584,14 @@ function EquipeTab() {
               return (
                 <tr key={v.id} className="border-t border-border align-top">
                   <td className="px-3 py-2"><div className="font-medium">{v.nome}</div><div className="text-xs text-muted-foreground">{v.whatsapp ?? "—"}</div></td>
-                  <td className="px-3 py-2 text-xs">{v.email}{!v.user_id && <Badge variant="secondary" className="ml-2">aguardando aceitar convite</Badge>}</td>
+                  <td className="px-3 py-2 text-xs">{v.email}{v.must_change_password && <Badge variant="secondary" className="ml-2">senha provisória</Badge>}</td>
                   <td className="px-3 py-2 text-xs"><span className="font-mono">/agendar/{v.slug}</span></td>
                   <td className="px-3 py-2">{v.ativo ? <Badge>Ativo</Badge> : <Badge variant="secondary">Inativo</Badge>}</td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-1">
                       <Button size="sm" variant="ghost" title="Copiar link" onClick={() => { void navigator.clipboard.writeText(link); toast.success("Link copiado"); }}><Copy className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" title="Abrir link" onClick={() => window.open(link, "_blank")}><ExternalLink className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" title="Reenviar convite" onClick={() => void resend(v)}><Mail className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" title="Resetar senha" onClick={() => void resetPassword(v)}><Mail className="h-4 w-4" /></Button>
                       <Button size="sm" variant="ghost" onClick={() => void toggleAtivo(v)}>{v.ativo ? "Inativar" : "Ativar"}</Button>
                       <Button size="sm" variant="ghost" onClick={() => void remove(v)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
@@ -541,9 +602,26 @@ function EquipeTab() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={!!shownCred} onOpenChange={(o) => !o && setShownCred(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Acesso criado</DialogTitle></DialogHeader>
+          {shownCred && (
+            <div className="grid gap-3 text-sm">
+              <p className="text-muted-foreground">Envie estes dados ao vendedor. Esta é a única vez que a senha será exibida.</p>
+              <div><Label className="text-xs">E-mail</Label><Input readOnly value={shownCred.email} className="font-mono" /></div>
+              <div><Label className="text-xs">Senha provisória</Label><Input readOnly value={shownCred.password} className="font-mono" /></div>
+              <Button onClick={() => { void navigator.clipboard.writeText(`E-mail: ${shownCred.email}\nSenha: ${shownCred.password}\nAcesse: ${typeof window !== "undefined" ? window.location.origin : ""}/auth`); toast.success("Copiado"); }}>
+                <Copy className="mr-2 h-4 w-4" />Copiar credenciais
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 
 // -------- Helpers --------

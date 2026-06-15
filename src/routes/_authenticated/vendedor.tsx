@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/vendedor")({
   component: VendedorPage,
 });
 
-type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean };
+type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; must_change_password: boolean };
 type Lead = {
   id: string; nome: string; whatsapp: string; email: string; cidade_estado: string | null;
   profissao: string | null; nivel_ingles: string | null; status: string; classificacao_lead: string;
@@ -52,9 +52,10 @@ function VendedorPage() {
       const { data } = await supabase.from("vendedores").select("*").eq("user_id", u.user.id).maybeSingle();
       if (!data) { setV("denied"); return; }
       if (!data.ativo) { setV("denied"); return; }
+      if ((data as Vendedor).must_change_password) { navigate({ to: "/trocar-senha", replace: true }); return; }
       setV(data as Vendedor);
     })();
-  }, []);
+  }, [navigate]);
 
   async function signOut() {
     await supabase.auth.signOut();

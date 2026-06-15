@@ -1,87 +1,51 @@
-## Visão geral
+## Plano de correção
 
-Adicionar suporte a múltiplos vendedores sem quebrar o fluxo atual. O chatbot atual em `/` continua funcionando (leads ficam como "legado", sem vendedor). Novos leads entram pela rota `/agendar/{slug}` e ficam vinculados ao vendedor do link.
+### 1) Horários por vendedor
 
-## Banco de dados (1 migration)
+**Banco** (migração):
+- `interview_slots`: adicionar trigger `BEFORE INSERT` que exige `vendedor_id NOT NULL` para novos slots (mantém legados intactos).
+- Adicionar índice único `(vendedor_id, scheduled_at) WHERE lead_id IS NULL` para impedir duplicidade do mesmo vendedor.
+- Atualizar RPC `get_available_slots` (legado, usado em `/`) para retornar `WHERE vendedor_id IS NULL` apenas (corta o "vazamento" de slots globais para outros vendedores). `get_available_slots_by_vendedor` já filtra corretamente.
+- Adicionar coluna `vendedores.must_change_password BOOLEAN DEFAULT true`.
 
-Nova tabela `vendedores`:
-- `id` (uuid), `user_id` (FK auth.users, nullable até 1º login), `nome`, `email`, `whatsapp`, `slug` (único), `ativo` (bool), timestamps.
+**Admin — aba Horários** (`src/routes/_authenticated/admin.tsx`):
+- Adicionar `<Select>` obrigatório "Vendedor" antes de cadastrar horário.
+- Listagem passa a mostrar coluna "Vendedor" e a filtrar por vendedor.
+- Insert passa `vendedor_id` selecionado.
 
-Alterações:
-- `leads`: adicionar `vendedor_id` (nullable — leads antigos ficam null).
-- `interview_slots`: adicionar `vendedor_id` (nullable para slots legados); slots novos exigem vendedor.
+**Vendedor — Minha disponibilidade**: já correto (insere com `vendedor_id: vendedor.id`). Sem mudanças.
 
-RLS:
-- `vendedores`: ADM full; vendedor lê só sua linha.
-- `leads`: ADM full; vendedor lê/atualiza só onde `vendedor_id` = seu vendedor.
-- `interview_slots`: ADM full; vendedor gerencia só os próprios slots.
-- INSERT público de leads continua aberto, mas com checagem: se `vendedor_id` veio preenchido, vendedor precisa estar ativo.
+**Link público `/agendar/$slug`**: já busca apenas slots do vendedor via RPC. Sem mudanças.
 
-Funções:
-- `get_vendedor_by_slug(slug)` — retorna `{id, nome, ativo}` se existir (público).
-- `get_available_slots_by_vendedor(vendedor_id)` — slots livres dos próximos 4 dias daquele vendedor.
-- `save_lead_progress` ganha `p_vendedor_id`.
-- `book_interview_slot` valida que o slot pertence ao vendedor do lead.
-- `current_vendedor_id()` security definer — retorna `vendedores.id` do `auth.uid()` (para RLS sem recursão).
-- Função `is_admin()` já existe via `has_role`.
+### 2) Login obrigatório dos vendedores
 
-## Cadastro de vendedor (convite por email)
+Substituir o convite por magic-link (que loga sem senha) por **senha provisória** definida pelo admin:
 
-Aba **Equipe** no painel ADM:
-- Listar/criar/editar/ativar vendedores (nome, email, whatsapp, slug, ativo).
-- Botão "Enviar convite" usa server function que chama `supabaseAdmin.auth.admin.inviteUserByEmail()` com redirect para `/auth?invite=1`.
-- Quando o usuário aceita e define senha, um trigger (ou server fn no 1º login) liga `vendedores.user_id` ao `auth.users.id` pelo email.
-- ADM pode copiar/abrir o link `/agendar/{slug}`.
+**Server function** (`src/lib/vendedores.functions.ts`):
+- Substituir `inviteVendedor` por `createVendedorAccount({ email, password })` usando `supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true })`. Após criar, marca `vendedores.must_change_password = true` (o trigger `link_vendedor_on_signup` já vincula `user_id` por email).
+- Nova `resetVendedorPassword({ vendedorId, password })` para admin redefinir.
 
-Emails de convite usam o sistema padrão do Supabase Auth (sem precisar configurar templates customizados agora).
+**Admin — aba Equipe**:
+- Trocar botão "Cadastrar e enviar convite" por formulário com campo "Senha provisória" (com botão "Gerar"). Após criar, exibe a senha em destaque com botão copiar e instrução "envie ao vendedor por WhatsApp".
+- Ação "Reenviar convite" vira "Resetar senha" (gera nova senha provisória, marca `must_change_password=true`).
+- Badge "aguardando definir senha" quando `must_change_password=true`.
 
-## Rotas frontend
+**Tela `/auth`**:
+- Já é login email+senha. Após login bem-sucedido, se for vendedor com `must_change_password=true`, redirecionar para nova rota `/_authenticated/trocar-senha` (forçada) antes de qualquer outra navegação.
+- Bloquear vendedor inativo no login (mensagem "Seu acesso está inativo…").
 
-Novas/alteradas:
-- `/agendar/$slug` — nova rota pública. Carrega vendedor pelo slug:
-  - Vendedor não existe → mensagem "link não encontrado".
-  - Vendedor inativo → mensagem "link indisponível".
-  - Ativo → renderiza o mesmo componente do chatbot atual, passando `vendedorId` e `vendedorNome`. Slots vêm de `get_available_slots_by_vendedor`.
-- `/` — continua como hoje (modo legado, sem vendedor). Sem mudanças visuais.
-- `/_authenticated/admin` — adiciona aba **Equipe** + filtro "Vendedor" nas abas Leads/Agendamentos/Horários.
-- `/_authenticated/vendedor` — novo painel do vendedor:
-  - Aba **Meu painel**: KPIs próprios (leads hoje/semana/mês, agendamentos), próximos agendamentos.
-  - Aba **Meus leads**: lista filtrada por `vendedor_id`.
-  - Aba **Meus agendamentos**: lista + mudar status (Agendado/Realizado/Remarcado/Cancelado/Não compareceu).
-  - Aba **Minha disponibilidade**: gerencia slots próprios (mesmo modelo atual de slots individuais).
-  - Aba **Meu link**: mostra `/agendar/{slug}`, copiar/abrir.
+**Nova rota `/_authenticated/trocar-senha`**: formulário simples (nova senha + confirmação) que chama `supabase.auth.updateUser({ password })` e seta `vendedores.must_change_password=false`. Enquanto `must_change_password=true`, o painel `/vendedor` redireciona para essa rota.
 
-Redirecionamento pós-login (`/auth`):
-- Se `has_role(admin)` → `/admin`.
-- Senão se vendedor ativo → `/vendedor`.
-- Senão → mensagem de acesso negado.
+**Proteção de rotas**: `_authenticated/route.tsx` já força login. Sem mudanças (link público `/agendar/$slug` continua aberto).
 
-## Refatoração do chatbot
+### Fora de escopo (não pedido explicitamente)
+- Migração da tabela `interview_slots` para o novo modelo `disponibilidade_vendedor` (dia da semana + janela recorrente) e tabela separada `bloqueios_agenda`. Mantém o modelo atual de slots individuais, que já satisfaz "cada slot pertence a um vendedor".
+- Tela "Esqueci minha senha" pública via email (depende de infra de email). Por enquanto só admin redefine.
 
-Extrair `src/routes/index.tsx` em um componente `src/components/ChatbotFlow.tsx` que aceita `vendedorId?` e `vendedorNome?` como props. Tanto `/` quanto `/agendar/$slug` renderizam esse componente. Slot picker recebe a função de buscar slots como prop (`getAvailableSlots`) para usar o RPC por vendedor quando aplicável.
+### Ordem
+1. Migração (trigger, índice único, coluna `must_change_password`, RPC).
+2. `vendedores.functions.ts` (create/reset com senha).
+3. Admin: aba Horários com vendedor selecionável; aba Equipe com fluxo de senha.
+4. `/auth` + rota `/trocar-senha` + redirecionamento.
 
-`save_lead_progress` recebe o `vendedor_id` no payload e grava em `leads.vendedor_id`. Status de "Entrevista agendada" continua funcionando igual.
-
-## O que NÃO entra agora (para manter escopo)
-
-- Disponibilidade recorrente por dia da semana e bloqueios pontuais — você optou por manter o modelo atual de slots individuais por vendedor. Pode evoluir depois.
-- Deduplicação de telefone/email normalizado em todos os vendedores — fica para iteração próxima (atualmente só o vendedor vê seus próprios leads, então duplicidade cruzada é menos crítica).
-- Ranking de vendedores e taxa de conversão no dashboard do ADM — adiciono KPIs básicos (total leads/agendamentos por vendedor); ranking elaborado pode vir depois se quiser.
-- Sub-status de agendamento (Realizado/Remarcado/etc.) — incluo campo `status` no agendamento, mas UI rica só no painel do vendedor.
-
-## Detalhes técnicos
-
-- `vendedores.user_id` é FK opcional para `auth.users(id)`. Trigger `on_auth_user_created` (ou server fn chamada no login) liga vendedor pelo email.
-- RLS usa `current_vendedor_id()` security definer para evitar recursão.
-- Server functions novas: `inviteVendedor`, `listVendedores`, `upsertVendedor`, `toggleVendedorAtivo` — todas exigem `requireSupabaseAuth` + checagem de admin.
-- Rota `/agendar/$slug` é SSR-safe: busca vendedor via RPC público `get_vendedor_by_slug` (não usa admin client).
-- `/_authenticated/vendedor` usa `current_vendedor_id()` para todos os queries (RLS protege).
-
-## Ordem de execução
-
-1. Migration (tabelas + RLS + funções).
-2. Refatorar chatbot em componente compartilhado.
-3. Criar rota `/agendar/$slug`.
-4. Criar painel do vendedor `/_authenticated/vendedor`.
-5. Adicionar aba Equipe no admin + filtros por vendedor.
-6. Ajustar `/auth` para redirecionar por role.
+Confirma?

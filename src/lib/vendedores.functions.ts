@@ -8,26 +8,96 @@ async function assertAdmin(supabase: SupabaseClient, userId: string) {
   if (!data) throw new Error("Apenas administradores podem executar esta ação");
 }
 
-export const inviteVendedor = createServerFn({ method: "POST" })
+function validEmail(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+function validPassword(s: string) {
+  return typeof s === "string" && s.length >= 8 && s.length <= 72;
+}
+
+/**
+ * Cria a conta de auth do vendedor com senha provisória definida pelo admin.
+ * Marca must_change_password=true para forçar troca no primeiro acesso.
+ * Idempotente: se já existir, apenas redefine a senha.
+ */
+export const createVendedorAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { email: string; redirectTo?: string }) => {
-    if (!input?.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
-      throw new Error("E-mail inválido");
+  .inputValidator((input: { email: string; password: string }) => {
+    if (!input?.email || !validEmail(input.email)) throw new Error("E-mail inválido");
+    if (!validPassword(input.password)) throw new Error("Senha deve ter ao menos 8 caracteres");
+    return { email: input.email.toLowerCase().trim(), password: input.password };
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // tenta criar; se existir, redefine senha
+    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+    if (createErr && !/already|registered|exists|duplicate/i.test(createErr.message ?? "")) {
+      throw new Error(createErr.message);
     }
+    if (createErr) {
+      // já existe: procurar e atualizar senha
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      const u = list?.users?.find((x) => x.email?.toLowerCase() === data.email);
+      if (!u) throw new Error("Usuário existente não encontrado");
+      const { error: upErr } = await supabaseAdmin.auth.admin.updateUserById(u.id, {
+        password: data.password,
+        email_confirm: true,
+      });
+      if (upErr) throw new Error(upErr.message);
+    }
+
+    // marca must_change_password (o trigger link_vendedor_on_signup vincula user_id)
+    await supabaseAdmin
+      .from("vendedores")
+      .update({ must_change_password: true })
+      .eq("email", data.email);
+
+    return { ok: true };
+  });
+
+export const resetVendedorPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { vendedorId: string; password: string }) => {
+    if (!input?.vendedorId) throw new Error("Vendedor inválido");
+    if (!validPassword(input.password)) throw new Error("Senha deve ter ao menos 8 caracteres");
     return input;
   })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
-      redirectTo: data.redirectTo,
-    });
-    if (error) {
-      // se já existe, é ok — apenas reenviamos
-      const msg = error.message || "";
-      if (!/already|registered|exists/i.test(msg)) {
-        throw new Error(msg);
-      }
+    const { data: v, error: vErr } = await supabaseAdmin
+      .from("vendedores")
+      .select("email,user_id")
+      .eq("id", data.vendedorId)
+      .maybeSingle();
+    if (vErr || !v) throw new Error("Vendedor não encontrado");
+
+    let userId = v.user_id as string | null;
+    if (!userId) {
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      userId = list?.users?.find((x) => x.email?.toLowerCase() === (v.email as string).toLowerCase())?.id ?? null;
     }
+    if (!userId) {
+      // cria do zero
+      const { error: cErr } = await supabaseAdmin.auth.admin.createUser({
+        email: v.email as string,
+        password: data.password,
+        email_confirm: true,
+      });
+      if (cErr) throw new Error(cErr.message);
+    } else {
+      const { error: upErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: data.password,
+        email_confirm: true,
+      });
+      if (upErr) throw new Error(upErr.message);
+    }
+    await supabaseAdmin.from("vendedores").update({ must_change_password: true }).eq("id", data.vendedorId);
     return { ok: true };
   });
