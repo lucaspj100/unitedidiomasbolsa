@@ -1,0 +1,1 @@
+UPDATE public.vendedores v SET user_id = u.id FROM auth.users u WHERE v.user_id IS NULL AND lower(u.email) = lower(v.email);
