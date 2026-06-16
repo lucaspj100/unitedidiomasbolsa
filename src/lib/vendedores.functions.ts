@@ -85,13 +85,13 @@ export const resetVendedorPassword = createServerFn({ method: "POST" })
       userId = list?.users?.find((x) => x.email?.toLowerCase() === (v.email as string).toLowerCase())?.id ?? null;
     }
     if (!userId) {
-      // cria do zero
-      const { error: cErr } = await supabaseAdmin.auth.admin.createUser({
+      const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email: v.email as string,
         password: data.password,
         email_confirm: true,
       });
       if (cErr) throw new Error(cErr.message);
+      userId = created?.user?.id ?? null;
     } else {
       const { error: upErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
         password: data.password,
@@ -99,6 +99,9 @@ export const resetVendedorPassword = createServerFn({ method: "POST" })
       });
       if (upErr) throw new Error(upErr.message);
     }
-    await supabaseAdmin.from("vendedores").update({ must_change_password: true }).eq("id", data.vendedorId);
+    await supabaseAdmin
+      .from("vendedores")
+      .update({ must_change_password: true, ...(userId ? { user_id: userId } : {}) })
+      .eq("id", data.vendedorId);
     return { ok: true };
   });
