@@ -233,6 +233,7 @@ export type Database = {
         Returns: string
       }
       claim_admin: { Args: never; Returns: boolean }
+      complete_vendedor_password_change: { Args: never; Returns: boolean }
       current_vendedor_id: { Args: never; Returns: string }
       get_available_slots: {
         Args: never

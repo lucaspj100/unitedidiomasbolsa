@@ -14,7 +14,6 @@ export const Route = createFileRoute("/_authenticated/trocar-senha")({
 
 function TrocarSenhaPage() {
   const navigate = useNavigate();
-  const [vendedorId, setVendedorId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pwd, setPwd] = useState("");
   const [pwd2, setPwd2] = useState("");
@@ -28,8 +27,8 @@ function TrocarSenhaPage() {
       const admin = (roles ?? []).some(r => r.role === "admin");
       setIsAdmin(admin);
       const { data: v } = await supabase.from("vendedores").select("id,must_change_password").eq("user_id", u.user.id).maybeSingle();
-      if (v) setVendedorId(v.id);
       if (admin && (!v || !v.must_change_password)) navigate({ to: "/admin" });
+      if (!admin && v && !v.must_change_password) navigate({ to: "/vendedor", replace: true });
     })();
   }, [navigate]);
 
@@ -41,7 +40,9 @@ function TrocarSenhaPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: pwd });
       if (error) throw error;
-      if (vendedorId) await supabase.from("vendedores").update({ must_change_password: false }).eq("id", vendedorId);
+      const { data: completed, error: completeError } = await supabase.rpc("complete_vendedor_password_change");
+      if (completeError) throw completeError;
+      if (!isAdmin && !completed) throw new Error("Conta de consultor não encontrada ou inativa.");
       toast.success("Senha atualizada.");
       navigate({ to: isAdmin ? "/admin" : "/vendedor", replace: true });
     } catch (err) {
