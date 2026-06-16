@@ -31,8 +31,8 @@ export const createVendedorAccount = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // tenta criar; se existir, redefine senha
-    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
+    let authUserId: string | null = null;
+    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
       email_confirm: true,
@@ -41,7 +41,6 @@ export const createVendedorAccount = createServerFn({ method: "POST" })
       throw new Error(createErr.message);
     }
     if (createErr) {
-      // já existe: procurar e atualizar senha
       const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
       const u = list?.users?.find((x) => x.email?.toLowerCase() === data.email);
       if (!u) throw new Error("Usuário existente não encontrado");
@@ -50,12 +49,14 @@ export const createVendedorAccount = createServerFn({ method: "POST" })
         email_confirm: true,
       });
       if (upErr) throw new Error(upErr.message);
+      authUserId = u.id;
+    } else {
+      authUserId = created?.user?.id ?? null;
     }
 
-    // marca must_change_password (o trigger link_vendedor_on_signup vincula user_id)
     await supabaseAdmin
       .from("vendedores")
-      .update({ must_change_password: true })
+      .update({ must_change_password: true, ...(authUserId ? { user_id: authUserId } : {}) })
       .eq("email", data.email);
 
     return { ok: true };
