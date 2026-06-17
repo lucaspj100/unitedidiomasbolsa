@@ -13,7 +13,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  LogOut, MessageCircle, CalendarClock, Plus, Trash2, Copy, ExternalLink, Users, CheckCircle2,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  LogOut, MessageCircle, CalendarClock, Plus, Trash2, Copy, ExternalLink, Users, CheckCircle2, Eye,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/vendedor")({
@@ -29,9 +32,11 @@ export const Route = createFileRoute("/_authenticated/vendedor")({
 type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; must_change_password: boolean };
 type Lead = {
   id: string; nome: string; whatsapp: string; email: string; cidade_estado: string | null;
-  profissao: string | null; nivel_ingles: string | null; status: string; classificacao_lead: string;
+  profissao: string | null; empresa: string | null; nivel_ingles: string | null; status: string; classificacao_lead: string;
   alta_prioridade: boolean; data_cadastro: string; ultima_interacao: string | null; scheduled_at: string | null;
   vendedor_id: string | null; etapa_atual: string | null;
+  motivo_ingles: string | null; impacto_ingles: string | null; perdeu_oportunidade: string | null;
+  motivo_nao_faz_curso: string | null; decisao_entrevista: string | null; origem: string | null;
 };
 type Slot = { id: string; scheduled_at: string; lead_id: string | null; vendedor_id: string | null };
 
