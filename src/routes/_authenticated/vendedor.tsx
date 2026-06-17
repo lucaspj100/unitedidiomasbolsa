@@ -172,6 +172,7 @@ function MyLeadsTab({ vendedor }: { vendedor: Vendedor }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [fStatus, setFStatus] = useState("all");
+  const [viewLead, setViewLead] = useState<Lead | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
