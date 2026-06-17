@@ -13,7 +13,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  LogOut, MessageCircle, CalendarClock, Plus, Trash2, Copy, ExternalLink, Users, CheckCircle2,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  LogOut, MessageCircle, CalendarClock, Plus, Trash2, Copy, ExternalLink, Users, CheckCircle2, Eye,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/vendedor")({
@@ -29,9 +32,11 @@ export const Route = createFileRoute("/_authenticated/vendedor")({
 type Vendedor = { id: string; nome: string; email: string; whatsapp: string | null; slug: string; ativo: boolean; must_change_password: boolean };
 type Lead = {
   id: string; nome: string; whatsapp: string; email: string; cidade_estado: string | null;
-  profissao: string | null; nivel_ingles: string | null; status: string; classificacao_lead: string;
+  profissao: string | null; empresa: string | null; nivel_ingles: string | null; status: string; classificacao_lead: string;
   alta_prioridade: boolean; data_cadastro: string; ultima_interacao: string | null; scheduled_at: string | null;
   vendedor_id: string | null; etapa_atual: string | null;
+  motivo_ingles: string | null; impacto_ingles: string | null; perdeu_oportunidade: string | null;
+  motivo_nao_faz_curso: string | null; decisao_entrevista: string | null; origem: string | null;
 };
 type Slot = { id: string; scheduled_at: string; lead_id: string | null; vendedor_id: string | null };
 
@@ -167,6 +172,7 @@ function MyLeadsTab({ vendedor }: { vendedor: Vendedor }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [fStatus, setFStatus] = useState("all");
+  const [viewLead, setViewLead] = useState<Lead | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,12 +231,51 @@ function MyLeadsTab({ vendedor }: { vendedor: Vendedor }) {
                   </Select>
                 </td>
                 <td className="px-3 py-2 text-xs">{l.scheduled_at ? fmtDateTime(l.scheduled_at) : "—"}</td>
-                <td className="px-3 py-2"><Button size="sm" variant="outline" onClick={() => openWhatsapp(l)}><MessageCircle className="h-4 w-4" /></Button></td>
+                <td className="px-3 py-2"><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => setViewLead(l)} title="Ver"><Eye className="h-4 w-4" /></Button><Button size="sm" variant="outline" onClick={() => openWhatsapp(l)}><MessageCircle className="h-4 w-4" /></Button></div></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <LeadDetailDialog lead={viewLead} onClose={() => setViewLead(null)} />
+    </div>
+  );
+}
+
+function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!lead} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{lead?.nome || "(sem nome)"}</DialogTitle></DialogHeader>
+        {lead && (
+          <div className="grid gap-2 text-sm">
+            <DetailRow label="WhatsApp" value={lead.whatsapp} />
+            <DetailRow label="E-mail" value={lead.email} />
+            <DetailRow label="Cidade/Estado" value={lead.cidade_estado} />
+            <DetailRow label="Profissão" value={lead.profissao} />
+            <DetailRow label="Empresa" value={lead.empresa} />
+            <DetailRow label="Nível de inglês" value={lead.nivel_ingles} />
+            <DetailRow label="Motivo do inglês" value={lead.motivo_ingles} />
+            <DetailRow label="Impacto no dia a dia" value={lead.impacto_ingles} />
+            <DetailRow label="Perdeu oportunidade" value={lead.perdeu_oportunidade} />
+            <DetailRow label="Por que não faz curso" value={lead.motivo_nao_faz_curso} />
+            <DetailRow label="Decisão entrevista" value={lead.decisao_entrevista} />
+            <DetailRow label="Status" value={lead.status} />
+            <DetailRow label="Etapa em que parou" value={lead.etapa_atual} />
+            <DetailRow label="Última interação" value={lead.ultima_interacao ? fmtDateTime(lead.ultima_interacao) : null} />
+            <DetailRow label="Entrevista agendada" value={lead.scheduled_at ? fmtDateTime(lead.scheduled_at) : null} />
+            <DetailRow label="Origem" value={lead.origem} />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="grid grid-cols-[150px_1fr] gap-2 border-b border-border pb-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span>{value || "—"}</span>
     </div>
   );
 }
