@@ -174,10 +174,20 @@ function LeadsTab() {
     if (filterClass !== "all" && l.classificacao_lead !== filterClass) return false;
     if (filterStatus !== "all" && l.status !== filterStatus) return false;
     if (filterNivel !== "all" && l.nivel_ingles !== filterNivel) return false;
+    if (filterFinanceiro !== "all") {
+      const v = l.alinhamento_financeiro;
+      if (filterFinanceiro === "positivo") {
+        if (!v || v === "Hoje não consigo investir esse valor" || v === "Prefiro entender melhor na entrevista") return false;
+      } else if (filterFinanceiro === "talvez") {
+        if (v !== "Prefiro entender melhor na entrevista") return false;
+      } else if (filterFinanceiro === "sem_fit") {
+        if (v !== "Hoje não consigo investir esse valor") return false;
+      }
+    }
     if (filterFrom && new Date(l.data_cadastro) < new Date(filterFrom)) return false;
     if (filterTo && new Date(l.data_cadastro) > new Date(filterTo + "T23:59:59")) return false;
     return true;
-  }), [leads, filterClass, filterStatus, filterNivel, filterFrom, filterTo]);
+  }), [leads, filterClass, filterStatus, filterNivel, filterFinanceiro, filterFrom, filterTo]);
 
   async function updateStatus(id: string, status: string) {
     const { error } = await supabase.from("leads").update({ status }).eq("id", id);
