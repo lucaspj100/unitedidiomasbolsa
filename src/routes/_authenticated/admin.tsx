@@ -156,6 +156,7 @@ function LeadsTab() {
   const [filterClass, setFilterClass] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterNivel, setFilterNivel] = useState("all");
+  const [filterFinanceiro, setFilterFinanceiro] = useState("all");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
   const [viewLead, setViewLead] = useState<Lead | null>(null);
