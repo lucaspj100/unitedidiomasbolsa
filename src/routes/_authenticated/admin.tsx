@@ -200,7 +200,7 @@ function LeadsTab() {
     window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, "_blank");
   }
   function exportCsv() {
-    const cols: Array<keyof Lead> = ["data_cadastro","ultima_interacao","status","etapa_atual","nome","whatsapp","email","cidade_estado","profissao","empresa","nivel_ingles","motivo_ingles","impacto_ingles","perdeu_oportunidade","motivo_nao_faz_curso","decisao_entrevista","classificacao_lead","alta_prioridade","scheduled_at","origem"];
+    const cols: Array<keyof Lead> = ["data_cadastro","ultima_interacao","status","etapa_atual","nome","whatsapp","email","cidade_estado","profissao","empresa","nivel_ingles","motivo_ingles","impacto_ingles","perdeu_oportunidade","motivo_nao_faz_curso","alinhamento_financeiro","decisao_entrevista","classificacao_lead","alta_prioridade","scheduled_at","origem"];
     const head = cols.join(",");
     const rows = filtered.map((l) => cols.map((c) => {
       const v = l[c]; const s = v === null || v === undefined ? "" : String(v);
