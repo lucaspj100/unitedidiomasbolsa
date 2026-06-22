@@ -123,6 +123,7 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       impacto_ingles: merged.impacto_ingles ?? null,
       perdeu_oportunidade: merged.perdeu_oportunidade ?? null,
       motivo_nao_faz_curso: merged.motivo_nao_faz_curso ?? null,
+      alinhamento_financeiro: merged.alinhamento_financeiro ?? null,
       decisao_entrevista: merged.decisao_entrevista ?? null,
       origem: vendedorId ? `link:${vendedorNome ?? vendedorId}` : "LinkedIn",
       respostas_json: merged as unknown as Record<string, unknown>,
