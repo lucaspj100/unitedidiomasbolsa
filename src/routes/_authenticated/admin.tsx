@@ -45,6 +45,7 @@ type Lead = {
   impacto_ingles: string | null;
   perdeu_oportunidade: string | null;
   motivo_nao_faz_curso: string | null;
+  alinhamento_financeiro: string | null;
   decisao_entrevista: string | null;
   classificacao_lead: string;
   alta_prioridade: boolean;
@@ -155,6 +156,7 @@ function LeadsTab() {
   const [filterClass, setFilterClass] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterNivel, setFilterNivel] = useState("all");
+  const [filterFinanceiro, setFilterFinanceiro] = useState("all");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
   const [viewLead, setViewLead] = useState<Lead | null>(null);
@@ -172,10 +174,20 @@ function LeadsTab() {
     if (filterClass !== "all" && l.classificacao_lead !== filterClass) return false;
     if (filterStatus !== "all" && l.status !== filterStatus) return false;
     if (filterNivel !== "all" && l.nivel_ingles !== filterNivel) return false;
+    if (filterFinanceiro !== "all") {
+      const v = l.alinhamento_financeiro;
+      if (filterFinanceiro === "positivo") {
+        if (!v || v === "Hoje não consigo investir esse valor" || v === "Prefiro entender melhor na entrevista") return false;
+      } else if (filterFinanceiro === "talvez") {
+        if (v !== "Prefiro entender melhor na entrevista") return false;
+      } else if (filterFinanceiro === "sem_fit") {
+        if (v !== "Hoje não consigo investir esse valor") return false;
+      }
+    }
     if (filterFrom && new Date(l.data_cadastro) < new Date(filterFrom)) return false;
     if (filterTo && new Date(l.data_cadastro) > new Date(filterTo + "T23:59:59")) return false;
     return true;
-  }), [leads, filterClass, filterStatus, filterNivel, filterFrom, filterTo]);
+  }), [leads, filterClass, filterStatus, filterNivel, filterFinanceiro, filterFrom, filterTo]);
 
   async function updateStatus(id: string, status: string) {
     const { error } = await supabase.from("leads").update({ status }).eq("id", id);
@@ -188,7 +200,7 @@ function LeadsTab() {
     window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, "_blank");
   }
   function exportCsv() {
-    const cols: Array<keyof Lead> = ["data_cadastro","ultima_interacao","status","etapa_atual","nome","whatsapp","email","cidade_estado","profissao","empresa","nivel_ingles","motivo_ingles","impacto_ingles","perdeu_oportunidade","motivo_nao_faz_curso","decisao_entrevista","classificacao_lead","alta_prioridade","scheduled_at","origem"];
+    const cols: Array<keyof Lead> = ["data_cadastro","ultima_interacao","status","etapa_atual","nome","whatsapp","email","cidade_estado","profissao","empresa","nivel_ingles","motivo_ingles","impacto_ingles","perdeu_oportunidade","motivo_nao_faz_curso","alinhamento_financeiro","decisao_entrevista","classificacao_lead","alta_prioridade","scheduled_at","origem"];
     const head = cols.join(",");
     const rows = filtered.map((l) => cols.map((c) => {
       const v = l[c]; const s = v === null || v === undefined ? "" : String(v);
@@ -203,10 +215,22 @@ function LeadsTab() {
 
   return (
     <div className="mt-4">
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
         <FilterSelect label="Classificação" value={filterClass} onChange={setFilterClass} options={["all", "quente", "morno", "frio", "curioso"]} />
         <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus} options={["all", ...STATUSES]} />
         <FilterSelect label="Nível" value={filterNivel} onChange={setFilterNivel} options={["all", "Básico", "Intermediário", "Avançado", "Não sei avaliar"]} />
+        <div>
+          <Label className="text-xs">Fit financeiro</Label>
+          <Select value={filterFinanceiro} onValueChange={setFilterFinanceiro}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Todos</SelectItem>
+              <SelectItem value="positivo" className="text-xs">Fit positivo</SelectItem>
+              <SelectItem value="talvez" className="text-xs">Prefere entender melhor</SelectItem>
+              <SelectItem value="sem_fit" className="text-xs">Sem fit financeiro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div><Label className="text-xs">De</Label><Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-9" /></div>
         <div><Label className="text-xs">Até</Label><Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-9" /></div>
         <div className="flex items-end"><Button variant="outline" className="w-full" size="sm" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Exportar CSV</Button></div>
@@ -667,6 +691,7 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () =>
             <Row label="Impacto no dia a dia" value={lead.impacto_ingles} />
             <Row label="Perdeu oportunidade" value={lead.perdeu_oportunidade} />
             <Row label="Por que não faz curso" value={lead.motivo_nao_faz_curso} />
+            <Row label="Alinhamento financeiro" value={lead.alinhamento_financeiro} />
             <Row label="Decisão entrevista" value={lead.decisao_entrevista} />
             <Row label="Status" value={lead.status} />
             <Row label="Etapa em que parou" value={lead.etapa_atual} />

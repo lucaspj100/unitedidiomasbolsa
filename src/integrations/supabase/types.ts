@@ -79,6 +79,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          alinhamento_financeiro: string | null
           alta_prioridade: boolean
           cidade_estado: string | null
           classificacao_lead: string
@@ -104,6 +105,7 @@ export type Database = {
           whatsapp: string
         }
         Insert: {
+          alinhamento_financeiro?: string | null
           alta_prioridade?: boolean
           cidade_estado?: string | null
           classificacao_lead?: string
@@ -129,6 +131,7 @@ export type Database = {
           whatsapp: string
         }
         Update: {
+          alinhamento_financeiro?: string | null
           alta_prioridade?: boolean
           cidade_estado?: string | null
           classificacao_lead?: string

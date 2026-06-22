@@ -11,6 +11,8 @@ import {
   validateEmail,
   validateWhatsapp,
   type Classificacao,
+  canSchedule,
+  classifyFinanceiro,
   type QualificationAnswers,
 } from "@/lib/lead-scoring";
 
@@ -35,6 +37,7 @@ const FLOW: Step[] = [
   { kind: "choice", field: "impacto_ingles", label: "De que forma o inglês mais influencia ou poderia influenciar seu dia a dia?", options: ["Tenho dificuldade em entrevistas ou processos seletivos","Preciso para crescer na empresa","Quero trabalhar fora ou com empresas internacionais","Tenho vergonha ou trava para falar","Quero viajar com mais segurança","Quero tirar uma certificação","Outro"] },
   { kind: "choice", field: "perdeu_oportunidade", label: "Você já perdeu alguma oportunidade por não ter inglês fluente?", options: ["Sim", "Não", "Ainda não, mas sinto que pode acontecer", "Não tenho certeza"] },
   { kind: "choice", field: "motivo_nao_faz_curso", label: "Por que você ainda não está fazendo um curso de inglês?", options: ["Falta de tempo", "Valor alto", "Já tentei antes e parei", "Não encontrei uma metodologia boa", "Falta de disciplina", "Outro"] },
+  { kind: "choice", field: "alinhamento_financeiro", label: "Importante: mesmo com a bolsa/ajuda de custo, o curso não é gratuito. Os alunos aprovados costumam investir a partir de R$290/mês, dependendo da condição liberada. Isso estaria dentro do que você consideraria hoje?", options: ["Sim, se a condição fizer sentido", "Sim, consigo investir nessa faixa", "Consigo investir até um pouco mais, dependendo da proposta", "Hoje não consigo investir esse valor", "Prefiro entender melhor na entrevista"] },
   { kind: "choice", field: "decisao_entrevista", label: "Caso seu perfil seja selecionado para a bolsa, você está decidido a conversar em uma entrevista online para entender metodologia, valores e condições?", options: ["Sim, tenho interesse real", "Talvez, quero entender melhor", "Não tenho certeza", "Só estava curioso"] },
   { kind: "evaluating" },
   { kind: "schedule" },
@@ -120,6 +123,7 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       impacto_ingles: merged.impacto_ingles ?? null,
       perdeu_oportunidade: merged.perdeu_oportunidade ?? null,
       motivo_nao_faz_curso: merged.motivo_nao_faz_curso ?? null,
+      alinhamento_financeiro: merged.alinhamento_financeiro ?? null,
       decisao_entrevista: merged.decisao_entrevista ?? null,
       origem: vendedorId ? `link:${vendedorNome ?? vendedorId}` : "LinkedIn",
       respostas_json: merged as unknown as Record<string, unknown>,
@@ -184,10 +188,22 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     const full = answers as QualificationAnswers;
     const cls = classifyLead(full);
     const alta = isHighPriority(full);
+    const fit = classifyFinanceiro(full.alinhamento_financeiro);
+    const allowSchedule = canSchedule(full);
     setClassificacao(cls);
     void (async () => {
       setMessages((m) => [...m, { from: "bot", text: "Analisando suas respostas…" }]);
-      if (cls === "quente" || cls === "morno") {
+      if (fit === "sem_fit") {
+        await persist({}, { status: "Sem fit financeiro no momento", etapa: "financeiro_sem_fit", classificacao: cls, alta });
+        setTimeout(() => {
+          setMessages((m) => [
+            ...m,
+            { from: "bot", text: "Entendi. Neste momento, talvez a entrevista de bolsa não seja o melhor próximo passo, porque mesmo com ajuda de custo existe um investimento mensal mínimo." },
+            { from: "bot", text: "Mas seu cadastro foi registrado, e podemos manter seu contato para futuras condições, conteúdos gratuitos ou novas oportunidades." },
+          ]);
+        }, 400);
+        setStepIndex(FLOW.length - 1);
+      } else if (allowSchedule) {
         await persist({}, { status: "Perfil aprovado para entrevista", etapa: "aprovado", classificacao: cls, alta });
         setStepIndex((i) => i + 1);
       } else {
