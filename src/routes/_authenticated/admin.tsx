@@ -45,6 +45,7 @@ type Lead = {
   impacto_ingles: string | null;
   perdeu_oportunidade: string | null;
   motivo_nao_faz_curso: string | null;
+  alinhamento_financeiro: string | null;
   decisao_entrevista: string | null;
   classificacao_lead: string;
   alta_prioridade: boolean;
