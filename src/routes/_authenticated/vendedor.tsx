@@ -36,7 +36,7 @@ type Lead = {
   alta_prioridade: boolean; data_cadastro: string; ultima_interacao: string | null; scheduled_at: string | null;
   vendedor_id: string | null; etapa_atual: string | null;
   motivo_ingles: string | null; impacto_ingles: string | null; perdeu_oportunidade: string | null;
-  motivo_nao_faz_curso: string | null; decisao_entrevista: string | null; origem: string | null;
+  motivo_nao_faz_curso: string | null; alinhamento_financeiro: string | null; decisao_entrevista: string | null; origem: string | null;
 };
 type Slot = { id: string; scheduled_at: string; lead_id: string | null; vendedor_id: string | null };
 
