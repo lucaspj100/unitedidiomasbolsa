@@ -11,6 +11,8 @@ import {
   validateEmail,
   validateWhatsapp,
   type Classificacao,
+  canSchedule,
+  classifyFinanceiro,
   type QualificationAnswers,
 } from "@/lib/lead-scoring";
 
