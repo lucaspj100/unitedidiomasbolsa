@@ -215,10 +215,22 @@ function LeadsTab() {
 
   return (
     <div className="mt-4">
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
         <FilterSelect label="Classificação" value={filterClass} onChange={setFilterClass} options={["all", "quente", "morno", "frio", "curioso"]} />
         <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus} options={["all", ...STATUSES]} />
         <FilterSelect label="Nível" value={filterNivel} onChange={setFilterNivel} options={["all", "Básico", "Intermediário", "Avançado", "Não sei avaliar"]} />
+        <div>
+          <Label className="text-xs">Fit financeiro</Label>
+          <Select value={filterFinanceiro} onValueChange={setFilterFinanceiro}>
+            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Todos</SelectItem>
+              <SelectItem value="positivo" className="text-xs">Fit positivo</SelectItem>
+              <SelectItem value="talvez" className="text-xs">Prefere entender melhor</SelectItem>
+              <SelectItem value="sem_fit" className="text-xs">Sem fit financeiro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div><Label className="text-xs">De</Label><Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-9" /></div>
         <div><Label className="text-xs">Até</Label><Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-9" /></div>
         <div className="flex items-end"><Button variant="outline" className="w-full" size="sm" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Exportar CSV</Button></div>
