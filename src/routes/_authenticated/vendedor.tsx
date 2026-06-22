@@ -259,6 +259,7 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () =>
             <DetailRow label="Impacto no dia a dia" value={lead.impacto_ingles} />
             <DetailRow label="Perdeu oportunidade" value={lead.perdeu_oportunidade} />
             <DetailRow label="Por que não faz curso" value={lead.motivo_nao_faz_curso} />
+            <DetailRow label="Alinhamento financeiro" value={lead.alinhamento_financeiro} />
             <DetailRow label="Decisão entrevista" value={lead.decisao_entrevista} />
             <DetailRow label="Status" value={lead.status} />
             <DetailRow label="Etapa em que parou" value={lead.etapa_atual} />
