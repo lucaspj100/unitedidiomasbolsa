@@ -188,10 +188,22 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     const full = answers as QualificationAnswers;
     const cls = classifyLead(full);
     const alta = isHighPriority(full);
+    const fit = classifyFinanceiro(full.alinhamento_financeiro);
+    const allowSchedule = canSchedule(full);
     setClassificacao(cls);
     void (async () => {
       setMessages((m) => [...m, { from: "bot", text: "Analisando suas respostas…" }]);
-      if (cls === "quente" || cls === "morno") {
+      if (fit === "sem_fit") {
+        await persist({}, { status: "Sem fit financeiro no momento", etapa: "financeiro_sem_fit", classificacao: cls, alta });
+        setTimeout(() => {
+          setMessages((m) => [
+            ...m,
+            { from: "bot", text: "Entendi. Neste momento, talvez a entrevista de bolsa não seja o melhor próximo passo, porque mesmo com ajuda de custo existe um investimento mensal mínimo." },
+            { from: "bot", text: "Mas seu cadastro foi registrado, e podemos manter seu contato para futuras condições, conteúdos gratuitos ou novas oportunidades." },
+          ]);
+        }, 400);
+        setStepIndex(FLOW.length - 1);
+      } else if (allowSchedule) {
         await persist({}, { status: "Perfil aprovado para entrevista", etapa: "aprovado", classificacao: cls, alta });
         setStepIndex((i) => i + 1);
       } else {
