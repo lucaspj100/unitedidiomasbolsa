@@ -347,15 +347,36 @@ function MySlotsTab({ vendedor }: { vendedor: Vendedor }) {
 
   async function add() {
     if (!date) { toast.error("Selecione uma data."); return; }
-    const list = times.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean);
-    if (!list.length) { toast.error("Informe ao menos um horário."); return; }
-    const rows = list.map(t => {
-      const [h, m] = t.split(":");
-      const d = new Date(`${date}T${(h ?? "0").padStart(2,"0")}:${(m ?? "00").padStart(2,"0")}:00`);
-      return { scheduled_at: d.toISOString(), vendedor_id: vendedor.id };
-    });
-    const { error } = await supabase.from("interview_slots").insert(rows);
-    if (error) toast.error(error.message); else { toast.success(`${rows.length} horário(s) adicionado(s)`); await load(); }
+    const today = new Date(); today.setHours(0,0,0,0);
+    const selected = new Date(`${date}T00:00:00`);
+    if (selected < today) { toast.error("Selecione a data de hoje ou uma data futura."); return; }
+    const now = new Date();
+    const rawList = times.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean);
+    const validTimes = new Set<string>();
+    for (const t of rawList) {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+      if (!m) continue;
+      const h = Number(m[1]), mi = Number(m[2]);
+      if (h < 0 || h > 23 || mi < 0 || mi > 59) continue;
+      validTimes.add(`${String(h).padStart(2,"0")}:${String(mi).padStart(2,"0")}`);
+    }
+    const rows = Array.from(validTimes).map(t => {
+      const [h, mi] = t.split(":");
+      const d = new Date(`${date}T${h}:${mi}:00`);
+      return { scheduled_at: d.toISOString(), vendedor_id: vendedor.id, _d: d };
+    }).filter(r => r._d > now).map(({ _d, ...r }) => r);
+    if (!rows.length) { toast.error("Informe ao menos um horário válido no futuro."); return; }
+    const { data: inserted, error } = await supabase
+      .from("interview_slots")
+      .upsert(rows, { onConflict: "vendedor_id,scheduled_at", ignoreDuplicates: true })
+      .select();
+    if (error) { toast.error("Não foi possível salvar os horários. Tente novamente."); return; }
+    const added = inserted?.length ?? 0;
+    const skipped = rows.length - added;
+    if (added === 0) toast.info("Esses horários já estavam cadastrados na sua disponibilidade.");
+    else if (skipped === 0) toast.success(`${added} horário(s) adicionado(s) com sucesso.`);
+    else toast.success(`${added} horário(s) adicionado(s). ${skipped} já estava(m) cadastrado(s).`);
+    await load();
   }
   async function remove(id: string) {
     if (!confirm("Remover este horário?")) return;
