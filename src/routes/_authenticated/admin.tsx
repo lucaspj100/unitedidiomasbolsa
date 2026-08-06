@@ -20,6 +20,7 @@ import {
   Download, LogOut, MessageCircle, Settings, Star, Eye, Trash2, Plus, CalendarClock, Users, Copy, ExternalLink, Mail,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { resendLeadToCrm } from "@/lib/crm-sync.functions";
 import { createVendedorAccount, resetVendedorPassword } from "@/lib/vendedores.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
