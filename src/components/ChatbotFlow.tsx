@@ -80,9 +80,11 @@ interface Branding {
 export interface ChatbotFlowProps {
   vendedorId?: string | null;
   vendedorNome?: string | null;
+  /** Slug público do link do vendedor (fonte de verdade para o CRM). */
+  publicSlug?: string | null;
 }
 
-export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotFlowProps) {
+export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug = null }: ChatbotFlowProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Partial<QualificationAnswers>>({});
   const [messages, setMessages] = useState<BubbleMsg[]>([]);
@@ -98,6 +100,31 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     logo_url: null, brand_name: "United Idiomas", brand_subtitle: "Assistente de Bolsa", whatsapp_number: null,
   });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const syncTimer = useRef<number | null>(null);
+  const syncFn = useServerFn(syncScholarshipLeadToCrm);
+
+  /**
+   * Dispara a sincronização com o CRM sem bloquear o candidato.
+   * Agrupa chamadas próximas (debounce) e reutiliza sempre o mesmo external_lead_id.
+   */
+  const scheduleCrmSync = useCallback((id: string, immediate = false) => {
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    const run = () => {
+      void (async () => {
+        try {
+          const r = await syncFn({ data: { leadId: id, publicSlug } });
+          if (!r?.success) {
+            // retentativa tardia (mesmo external_lead_id), silenciosa para o candidato
+            window.setTimeout(() => { void syncFn({ data: { leadId: id, publicSlug } }).catch(() => {}); }, 60_000);
+          }
+        } catch {
+          /* falha do CRM nunca interrompe o formulário */
+        }
+      })();
+    };
+    if (immediate) run();
+    else syncTimer.current = window.setTimeout(run, 1500);
+  }, [publicSlug, syncFn]);
 
   const step = FLOW[stepIndex];
 
