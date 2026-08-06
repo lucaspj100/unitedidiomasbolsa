@@ -45,6 +45,7 @@ type Lead = {
   impacto_ingles: string | null;
   perdeu_oportunidade: string | null;
   motivo_nao_faz_curso: string | null;
+  prazo_inicio: string | null;
   alinhamento_financeiro: string | null;
   decisao_entrevista: string | null;
   classificacao_lead: string;
@@ -200,7 +201,7 @@ function LeadsTab() {
     window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, "_blank");
   }
   function exportCsv() {
-    const cols: Array<keyof Lead> = ["data_cadastro","ultima_interacao","status","etapa_atual","nome","whatsapp","email","cidade_estado","profissao","empresa","nivel_ingles","motivo_ingles","impacto_ingles","perdeu_oportunidade","motivo_nao_faz_curso","alinhamento_financeiro","decisao_entrevista","classificacao_lead","alta_prioridade","scheduled_at","origem"];
+    const cols: Array<keyof Lead> = ["data_cadastro","ultima_interacao","status","etapa_atual","nome","whatsapp","email","cidade_estado","profissao","empresa","nivel_ingles","motivo_ingles","impacto_ingles","perdeu_oportunidade","motivo_nao_faz_curso","prazo_inicio","alinhamento_financeiro","decisao_entrevista","classificacao_lead","alta_prioridade","scheduled_at","origem"];
     const head = cols.join(",");
     const rows = filtered.map((l) => cols.map((c) => {
       const v = l[c]; const s = v === null || v === undefined ? "" : String(v);
@@ -691,6 +692,7 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () =>
             <Row label="Impacto no dia a dia" value={lead.impacto_ingles} />
             <Row label="Perdeu oportunidade" value={lead.perdeu_oportunidade} />
             <Row label="Por que não faz curso" value={lead.motivo_nao_faz_curso} />
+            <Row label="Prazo para começar" value={lead.prazo_inicio} />
             <Row label="Alinhamento financeiro" value={lead.alinhamento_financeiro} />
             <Row label="Decisão entrevista" value={lead.decisao_entrevista} />
             <Row label="Status" value={lead.status} />

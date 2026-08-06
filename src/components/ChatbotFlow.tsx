@@ -18,31 +18,55 @@ import {
 
 type Step =
   | { kind: "intro" }
-  | { kind: "input"; field: keyof QualificationAnswers; label: string; placeholder?: string; type?: string; optional?: boolean }
-  | { kind: "choice"; field: keyof QualificationAnswers; label: string; options: string[] }
+  | { kind: "input"; field: keyof QualificationAnswers; label: string; placeholder?: string; type?: string; optional?: boolean; pre?: string[] }
+  | { kind: "choice"; field: keyof QualificationAnswers; label: string; options: string[]; pre?: string[] }
   | { kind: "evaluating" }
   | { kind: "schedule" }
   | { kind: "done" };
 
 const FLOW: Step[] = [
   { kind: "intro" },
-  { kind: "input", field: "nome", label: "Para começar, qual é o seu nome completo?", placeholder: "Seu nome completo" },
-  { kind: "input", field: "whatsapp", label: "Qual seu WhatsApp com DDD?", placeholder: "(11) 99999-9999", type: "tel" },
+  { kind: "input", field: "nome", label: "Para começarmos, como você se chama? (nome completo)", placeholder: "Seu nome completo" },
+  { kind: "input", field: "whatsapp", label: "Prazer, tudo bem? Qual o seu WhatsApp com DDD? É por lá que confirmamos tudo com você.", placeholder: "(11) 99999-9999", type: "tel" },
   { kind: "input", field: "email", label: "E qual o seu melhor e-mail?", placeholder: "voce@email.com", type: "email" },
   { kind: "input", field: "cidade_estado", label: "Em qual cidade e estado você mora?", placeholder: "Ex: São Paulo, SP" },
-  { kind: "input", field: "profissao", label: "Qual a sua profissão ou área de atuação?", placeholder: "Ex: Analista de Marketing" },
-  { kind: "input", field: "empresa", label: "Em qual empresa você trabalha? (opcional)", placeholder: "Pode pular se preferir", optional: true },
-  { kind: "choice", field: "nivel_ingles", label: "Como você avalia seu nível atual de inglês?", options: ["Básico", "Intermediário", "Avançado", "Não sei avaliar"] },
-  { kind: "choice", field: "motivo_ingles", label: "Por que o inglês é importante para você hoje?", options: ["Crescimento profissional", "Melhor oportunidade de emprego", "Viagem", "Vida acadêmica", "Objetivo pessoal", "Outro"] },
-  { kind: "choice", field: "impacto_ingles", label: "De que forma o inglês mais influencia ou poderia influenciar seu dia a dia?", options: ["Tenho dificuldade em entrevistas ou processos seletivos","Preciso para crescer na empresa","Quero trabalhar fora ou com empresas internacionais","Tenho vergonha ou trava para falar","Quero viajar com mais segurança","Quero tirar uma certificação","Outro"] },
-  { kind: "choice", field: "perdeu_oportunidade", label: "Você já perdeu alguma oportunidade por não ter inglês fluente?", options: ["Sim", "Não", "Ainda não, mas sinto que pode acontecer", "Não tenho certeza"] },
-  { kind: "choice", field: "motivo_nao_faz_curso", label: "Por que você ainda não está fazendo um curso de inglês?", options: ["Falta de tempo", "Valor alto", "Já tentei antes e parei", "Não encontrei uma metodologia boa", "Falta de disciplina", "Outro"] },
-  { kind: "choice", field: "alinhamento_financeiro", label: "Importante: mesmo com a bolsa/ajuda de custo, o curso não é gratuito. Os alunos aprovados costumam investir a partir de R$290/mês, dependendo da condição liberada. Isso estaria dentro do que você consideraria hoje?", options: ["Sim, se a condição fizer sentido", "Sim, consigo investir nessa faixa", "Consigo investir até um pouco mais, dependendo da proposta", "Hoje não consigo investir esse valor", "Prefiro entender melhor na entrevista"] },
-  { kind: "choice", field: "decisao_entrevista", label: "Caso seu perfil seja selecionado para a bolsa, você está decidido a conversar em uma entrevista online para entender metodologia, valores e condições?", options: ["Sim, tenho interesse real", "Talvez, quero entender melhor", "Não tenho certeza", "Só estava curioso"] },
+  { kind: "input", field: "profissao", label: "Agora me conta um pouco do seu momento: qual a sua profissão ou área de atuação?", placeholder: "Ex: Analista de Marketing" },
+  { kind: "input", field: "empresa", label: "Em qual empresa você trabalha hoje? (se preferir, pode pular)", placeholder: "Pode pular se preferir", optional: true },
+  { kind: "choice", field: "nivel_ingles", label: "Sendo bem sincero(a), como está o seu inglês hoje?", options: ["Básico", "Intermediário", "Avançado", "Não sei avaliar"] },
+  { kind: "choice", field: "motivo_ingles", label: "E o que faz o inglês ser importante para você neste momento da sua vida?", options: ["Crescimento profissional", "Melhor oportunidade de emprego", "Viagem", "Vida acadêmica", "Objetivo pessoal", "Outro"] },
+  { kind: "choice", field: "impacto_ingles", label: "Na prática, onde o inglês mais pesa (ou poderia ajudar) no seu dia a dia?", options: ["Tenho dificuldade em entrevistas ou processos seletivos","Preciso para crescer na empresa","Quero trabalhar fora ou com empresas internacionais","Tenho vergonha ou trava para falar","Quero viajar com mais segurança","Quero tirar uma certificação","Outro"] },
+  { kind: "choice", field: "perdeu_oportunidade", label: "Você já deixou passar alguma oportunidade por causa do inglês?", options: ["Sim", "Não", "Ainda não, mas sinto que pode acontecer", "Não tenho certeza"] },
+  { kind: "choice", field: "motivo_nao_faz_curso", label: "E o que te impediu de resolver isso até agora?", options: ["Falta de tempo", "Valor alto", "Já tentei antes e parei", "Não encontrei uma metodologia boa", "Falta de disciplina", "Outro"] },
+  {
+    kind: "choice",
+    field: "prazo_inicio",
+    label: "Se a bolsa for liberada para o seu perfil, em quanto tempo você pretende começar?",
+    options: ["O quanto antes, quero começar agora", "Nas próximas semanas", "Nos próximos 2 ou 3 meses", "Ainda não tenho previsão"],
+    pre: ["Entendi. Faz muito sentido, e é justamente por isso que existe esse processo de bolsa."],
+  },
+  {
+    kind: "choice",
+    field: "alinhamento_financeiro",
+    label: "Considerando isso, esse investimento estaria dentro do que faz sentido para você hoje?",
+    options: ["Sim, se a condição fizer sentido", "Sim, consigo investir nessa faixa", "Consigo investir até um pouco mais, dependendo da proposta", "Hoje não consigo investir esse valor", "Prefiro entender melhor na entrevista"],
+    pre: [
+      "Antes de seguir, preciso ser transparente com você para não tomarmos o tempo de ninguém à toa.",
+      "O curso completo da United Idiomas custa cerca de R$750 por mês. Com a bolsa e a ajuda de custo, os alunos aprovados normalmente ficam entre R$290 e R$350 por mês, dependendo da condição liberada no seu caso.",
+      "Ou seja: a bolsa reduz bastante o valor, mas o curso não é gratuito.",
+    ],
+  },
+  {
+    kind: "choice",
+    field: "decisao_entrevista",
+    label: "Se o seu perfil for selecionado, você topa participar de uma entrevista online de 40 a 45 minutos para entender metodologia, valores e condições da bolsa?",
+    options: ["Sim, tenho interesse real", "Talvez, quero entender melhor", "Não tenho certeza", "Só estava curioso"],
+    pre: ["Ótimo, obrigado pela sinceridade. Última pergunta:"],
+  },
   { kind: "evaluating" },
   { kind: "schedule" },
   { kind: "done" },
 ];
+
 
 interface BubbleMsg { from: "bot" | "user"; text: string }
 interface Slot { id: string; scheduled_at: string }
@@ -83,9 +107,10 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       : "Olá! Vi que você tem interesse no processo de bolsa da United Idiomas.";
     setMessages([
       { from: "bot", text: intro },
-      { from: "bot", text: "Vou te fazer algumas perguntas rápidas para entender seu perfil e verificar se faz sentido avançarmos para uma entrevista de liberação da bolsa." },
-      { from: "bot", text: "Leva menos de 2 minutos." },
+      { from: "bot", text: "Sou o assistente responsável pela pré-seleção. Antes de qualquer coisa, quero entender o seu momento e ver se a bolsa realmente faz sentido para você." },
+      { from: "bot", text: "São poucas perguntas, leva menos de 2 minutos, e no final eu já te digo se seu perfil segue para a entrevista." },
     ]);
+
     void (async () => {
       const { data } = await supabase.rpc("get_public_settings");
       const s = Array.isArray(data) && data[0] ? data[0] : null;
@@ -123,7 +148,9 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       impacto_ingles: merged.impacto_ingles ?? null,
       perdeu_oportunidade: merged.perdeu_oportunidade ?? null,
       motivo_nao_faz_curso: merged.motivo_nao_faz_curso ?? null,
+      prazo_inicio: merged.prazo_inicio ?? null,
       alinhamento_financeiro: merged.alinhamento_financeiro ?? null,
+
       decisao_entrevista: merged.decisao_entrevista ?? null,
       origem: vendedorId ? `link:${vendedorNome ?? vendedorId}` : "LinkedIn",
       respostas_json: merged as unknown as Record<string, unknown>,
@@ -153,9 +180,14 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     const nextStep = FLOW[next];
     void persist({ [field]: fieldValue } as Partial<QualificationAnswers>, { etapa: String(field) });
     if (nextStep && "label" in nextStep && nextStep.label) {
-      setTimeout(() => setMessages((m) => [...m, { from: "bot", text: nextStep.label! }]), 350);
+      const pre = "pre" in nextStep && nextStep.pre ? nextStep.pre : [];
+      pre.forEach((text, i) => {
+        setTimeout(() => setMessages((m) => [...m, { from: "bot", text }]), 350 + i * 700);
+      });
+      setTimeout(() => setMessages((m) => [...m, { from: "bot", text: nextStep.label! }]), 350 + pre.length * 700);
     }
   }
+
 
   function startFlow() {
     setStepIndex(1);
@@ -192,14 +224,15 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     const allowSchedule = canSchedule(full);
     setClassificacao(cls);
     void (async () => {
-      setMessages((m) => [...m, { from: "bot", text: "Analisando suas respostas…" }]);
+      setMessages((m) => [...m, { from: "bot", text: "Perfeito. Vou analisar suas respostas com base nos critérios da bolsa…" }]);
       if (fit === "sem_fit") {
         await persist({}, { status: "Sem fit financeiro no momento", etapa: "financeiro_sem_fit", classificacao: cls, alta });
         setTimeout(() => {
           setMessages((m) => [
             ...m,
-            { from: "bot", text: "Entendi. Neste momento, talvez a entrevista de bolsa não seja o melhor próximo passo, porque mesmo com ajuda de custo existe um investimento mensal mínimo." },
-            { from: "bot", text: "Mas seu cadastro foi registrado, e podemos manter seu contato para futuras condições, conteúdos gratuitos ou novas oportunidades." },
+            { from: "bot", text: "Agradeço muito pela sinceridade, isso evita que você perca tempo em uma entrevista que não faria sentido agora." },
+            { from: "bot", text: "Como mesmo com a bolsa existe um investimento mensal, hoje esse não seria o melhor momento para avançarmos." },
+            { from: "bot", text: "Seu cadastro fica registrado com a gente: quando surgirem novas condições, turmas ou materiais gratuitos, entramos em contato." },
           ]);
         }, 400);
         setStepIndex(FLOW.length - 1);
@@ -208,8 +241,16 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
         setStepIndex((i) => i + 1);
       } else {
         await persist({}, { status: cls === "frio" ? "Perfil não aprovado" : "Não agendou", etapa: "encerrado", classificacao: cls, alta });
+        setTimeout(() => {
+          setMessages((m) => [
+            ...m,
+            { from: "bot", text: "Obrigado por responder tudo com atenção. Pelo que você me contou, ainda não é o momento ideal para a entrevista de bolsa." },
+            { from: "bot", text: "Deixei seu cadastro registrado. Se o seu cenário mudar, é só nos chamar que reabrimos sua análise." },
+          ]);
+        }, 400);
         setStepIndex(FLOW.length - 1);
       }
+
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex]);
@@ -221,9 +262,11 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       const nome = (answers.nome ?? "").split(" ")[0];
       setMessages((m) => [
         ...m,
-        { from: "bot", text: `Perfeito, ${nome}! Seu perfil foi aprovado para a etapa de entrevista.` },
-        { from: "bot", text: "A conversa dura cerca de 40 a 45 minutos, é online e sem compromisso. Escolha abaixo um horário disponível nos próximos dias para concluir sua pré-aprovação." },
+        { from: "bot", text: `Boa notícia, ${nome}! Seu perfil foi pré-aprovado para a etapa de entrevista da bolsa.` },
+        { from: "bot", text: "A conversa é online, dura de 40 a 45 minutos, e nela você entende a metodologia, os valores e qual condição de bolsa pode ser liberada no seu caso." },
+        { from: "bot", text: "As vagas dessa etapa são limitadas por consultor. Escolha abaixo o melhor horário para você:" },
       ]);
+
       const rpc = vendedorId
         ? supabase.rpc("get_available_slots_by_vendedor", { p_vendedor_id: vendedorId })
         : supabase.rpc("get_available_slots");
