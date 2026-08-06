@@ -224,14 +224,15 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     const allowSchedule = canSchedule(full);
     setClassificacao(cls);
     void (async () => {
-      setMessages((m) => [...m, { from: "bot", text: "Analisando suas respostas…" }]);
+      setMessages((m) => [...m, { from: "bot", text: "Perfeito. Vou analisar suas respostas com base nos critérios da bolsa…" }]);
       if (fit === "sem_fit") {
         await persist({}, { status: "Sem fit financeiro no momento", etapa: "financeiro_sem_fit", classificacao: cls, alta });
         setTimeout(() => {
           setMessages((m) => [
             ...m,
-            { from: "bot", text: "Entendi. Neste momento, talvez a entrevista de bolsa não seja o melhor próximo passo, porque mesmo com ajuda de custo existe um investimento mensal mínimo." },
-            { from: "bot", text: "Mas seu cadastro foi registrado, e podemos manter seu contato para futuras condições, conteúdos gratuitos ou novas oportunidades." },
+            { from: "bot", text: "Agradeço muito pela sinceridade, isso evita que você perca tempo em uma entrevista que não faria sentido agora." },
+            { from: "bot", text: "Como mesmo com a bolsa existe um investimento mensal, hoje esse não seria o melhor momento para avançarmos." },
+            { from: "bot", text: "Seu cadastro fica registrado com a gente: quando surgirem novas condições, turmas ou materiais gratuitos, entramos em contato." },
           ]);
         }, 400);
         setStepIndex(FLOW.length - 1);
@@ -240,8 +241,16 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
         setStepIndex((i) => i + 1);
       } else {
         await persist({}, { status: cls === "frio" ? "Perfil não aprovado" : "Não agendou", etapa: "encerrado", classificacao: cls, alta });
+        setTimeout(() => {
+          setMessages((m) => [
+            ...m,
+            { from: "bot", text: "Obrigado por responder tudo com atenção. Pelo que você me contou, ainda não é o momento ideal para a entrevista de bolsa." },
+            { from: "bot", text: "Deixei seu cadastro registrado. Se o seu cenário mudar, é só nos chamar que reabrimos sua análise." },
+          ]);
+        }, 400);
         setStepIndex(FLOW.length - 1);
       }
+
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex]);
