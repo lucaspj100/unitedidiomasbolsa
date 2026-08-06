@@ -107,9 +107,10 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       : "Olá! Vi que você tem interesse no processo de bolsa da United Idiomas.";
     setMessages([
       { from: "bot", text: intro },
-      { from: "bot", text: "Vou te fazer algumas perguntas rápidas para entender seu perfil e verificar se faz sentido avançarmos para uma entrevista de liberação da bolsa." },
-      { from: "bot", text: "Leva menos de 2 minutos." },
+      { from: "bot", text: "Sou o assistente responsável pela pré-seleção. Antes de qualquer coisa, quero entender o seu momento e ver se a bolsa realmente faz sentido para você." },
+      { from: "bot", text: "São poucas perguntas, leva menos de 2 minutos, e no final eu já te digo se seu perfil segue para a entrevista." },
     ]);
+
     void (async () => {
       const { data } = await supabase.rpc("get_public_settings");
       const s = Array.isArray(data) && data[0] ? data[0] : null;
