@@ -16,7 +16,7 @@ export type CrmSyncResult = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,58}[a-z0-9]$/i;
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,59}$/i;
 
 function txt(v: unknown, max = 500): string | null {
   if (v === undefined || v === null) return null;
