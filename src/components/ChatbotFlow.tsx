@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GraduationCap, Send, CalendarCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { syncScholarshipLeadToCrm } from "@/lib/crm-sync.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -80,9 +82,11 @@ interface Branding {
 export interface ChatbotFlowProps {
   vendedorId?: string | null;
   vendedorNome?: string | null;
+  /** Slug público do link do vendedor (fonte de verdade para o CRM). */
+  publicSlug?: string | null;
 }
 
-export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotFlowProps) {
+export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug = null }: ChatbotFlowProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Partial<QualificationAnswers>>({});
   const [messages, setMessages] = useState<BubbleMsg[]>([]);
@@ -98,6 +102,31 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     logo_url: null, brand_name: "United Idiomas", brand_subtitle: "Assistente de Bolsa", whatsapp_number: null,
   });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const syncTimer = useRef<number | null>(null);
+  const syncFn = useServerFn(syncScholarshipLeadToCrm);
+
+  /**
+   * Dispara a sincronização com o CRM sem bloquear o candidato.
+   * Agrupa chamadas próximas (debounce) e reutiliza sempre o mesmo external_lead_id.
+   */
+  const scheduleCrmSync = useCallback((id: string, immediate = false) => {
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    const run = () => {
+      void (async () => {
+        try {
+          const r = await syncFn({ data: { leadId: id, publicSlug } });
+          if (!r?.success) {
+            // retentativa tardia (mesmo external_lead_id), silenciosa para o candidato
+            window.setTimeout(() => { void syncFn({ data: { leadId: id, publicSlug } }).catch(() => {}); }, 60_000);
+          }
+        } catch {
+          /* falha do CRM nunca interrompe o formulário */
+        }
+      })();
+    };
+    if (immediate) run();
+    else syncTimer.current = window.setTimeout(run, 1500);
+  }, [publicSlug, syncFn]);
 
   const step = FLOW[stepIndex];
 
@@ -164,11 +193,14 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       const args = { p_id: leadId, p_data: payload } as unknown as { p_id: string; p_data: never };
       const { data, error } = await supabase.rpc("save_lead_progress", args);
       if (error) throw error;
+      const id = typeof data === "string" ? data : leadId;
       if (typeof data === "string" && !leadId) setLeadId(data);
+      // Sincroniza com o CRM só depois de existir o ID local (external_lead_id).
+      if (id) scheduleCrmSync(id, Boolean(opts?.status && opts.status !== "Formulário incompleto"));
     } catch (e) {
       console.error("save_lead_progress", e);
     }
-  }, [answers, leadId, vendedorId, vendedorNome]);
+  }, [answers, leadId, vendedorId, vendedorNome, scheduleCrmSync]);
 
   function advanceWith(userText: string, fieldValue: string, field: keyof QualificationAnswers) {
     const next = stepIndex + 1;
@@ -301,6 +333,7 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
         { from: "bot", text: "Em breve você receberá as informações para participar." },
       ]);
       setStepIndex(FLOW.length - 1);
+      scheduleCrmSync(leadId, true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Não foi possível agendar.";
       toast.error(msg);

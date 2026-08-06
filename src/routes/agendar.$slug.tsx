@@ -48,7 +48,7 @@ function AgendarPage() {
   if (state.status === "inactive") {
     return <Message title="Link indisponível" body="Este link de agendamento não está disponível no momento. Entre em contato com nossa equipe." />;
   }
-  return <ChatbotFlow vendedorId={state.v.id} vendedorNome={state.v.nome} />;
+  return <ChatbotFlow vendedorId={state.v.id} vendedorNome={state.v.nome} publicSlug={slug} />;
 }
 
 function Message({ title, body }: { title: string; body: string }) {

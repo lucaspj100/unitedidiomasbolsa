@@ -20,6 +20,7 @@ import {
   Download, LogOut, MessageCircle, Settings, Star, Eye, Trash2, Plus, CalendarClock, Users, Copy, ExternalLink, Mail,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { resendLeadToCrm } from "@/lib/crm-sync.functions";
 import { createVendedorAccount, resetVendedorPassword } from "@/lib/vendedores.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -57,6 +58,12 @@ type Lead = {
   etapa_atual: string | null;
   scheduled_at: string | null;
   respostas_json: Record<string, unknown>;
+  crm_lead_id: string | null;
+  crm_sync_status: string | null;
+  crm_sync_attempts: number | null;
+  crm_last_sync_error: string | null;
+  crm_synced_at: string | null;
+  crm_last_attempt_at: string | null;
 };
 
 type Slot = { id: string; scheduled_at: string; lead_id: string | null; notes: string | null; vendedor_id: string | null };
@@ -248,13 +255,14 @@ function LeadsTab() {
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Etapa</th>
               <th className="px-3 py-2">Agendada</th>
+              <th className="px-3 py-2">CRM</th>
               <th className="px-3 py-2">Última int.</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
-            {!loading && filtered.length === 0 && (<tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">Nenhum lead encontrado.</td></tr>)}
+            {loading && (<tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
+            {!loading && filtered.length === 0 && (<tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">Nenhum lead encontrado.</td></tr>)}
             {filtered.map((l) => (
               <tr key={l.id} className="border-t border-border align-top hover:bg-muted/30">
                 <td className="px-3 py-2">
@@ -277,6 +285,7 @@ function LeadsTab() {
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{l.etapa_atual ?? "—"}</td>
                 <td className="px-3 py-2 text-xs">{l.scheduled_at ? fmtDateTime(l.scheduled_at) : "—"}</td>
+                <td className="px-3 py-2"><CrmSyncCell lead={l} onDone={() => void load()} /></td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{l.ultima_interacao ? fmtDateTime(l.ultima_interacao) : "—"}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
@@ -700,17 +709,72 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () =>
             <Row label="Última interação" value={lead.ultima_interacao ? fmtDateTime(lead.ultima_interacao) : null} />
             <Row label="Entrevista agendada" value={lead.scheduled_at ? fmtDateTime(lead.scheduled_at) : null} />
             <Row label="Origem" value={lead.origem} />
+            <Row label="external_lead_id" value={lead.id} />
+            <Row label="CRM · ID" value={lead.crm_lead_id} />
+            <Row label="CRM · Sincronização" value={lead.crm_sync_status} />
+            <Row label="CRM · Tentativas" value={lead.crm_sync_attempts != null ? String(lead.crm_sync_attempts) : null} />
+            <Row label="CRM · Última tentativa" value={lead.crm_last_attempt_at ? fmtDateTime(lead.crm_last_attempt_at) : null} />
+            <Row label="CRM · Sincronizado em" value={lead.crm_synced_at ? fmtDateTime(lead.crm_synced_at) : null} />
+            <Row label="CRM · Último erro" value={lead.crm_last_sync_error} />
           </div>
         )}
       </DialogContent>
     </Dialog>
   );
 }
+
+function CrmSyncCell({ lead, onDone }: { lead: Lead; onDone: () => void }) {
+  const resend = useServerFn(resendLeadToCrm);
+  const [sending, setSending] = useState(false);
+  const status = lead.crm_sync_status ?? "pending";
+  const tone =
+    status === "synced" ? "bg-success/15 text-success"
+      : status === "failed" ? "bg-destructive/15 text-destructive"
+        : status === "syncing" ? "bg-primary/15 text-primary"
+          : "bg-warning/15 text-warning";
+  return (
+    <div className="text-xs">
+      <Badge className={tone}>{status}</Badge>
+      {(lead.crm_sync_attempts ?? 0) > 0 && (
+        <div className="mt-1 text-muted-foreground">{lead.crm_sync_attempts} tentativa(s)</div>
+      )}
+      {lead.crm_last_sync_error && (
+        <div className="mt-1 max-w-[180px] truncate text-muted-foreground" title={lead.crm_last_sync_error}>
+          {lead.crm_last_sync_error}
+        </div>
+      )}
+      <Button
+        size="sm"
+        variant="outline"
+        className="mt-1 h-7 text-xs"
+        disabled={sending}
+        onClick={() => {
+          setSending(true);
+          void (async () => {
+            try {
+              const r = await resend({ data: { leadId: lead.id } });
+              if (r?.success) toast.success("Lead reenviado ao CRM");
+              else toast.error(`Não foi possível reenviar (${r?.errorCode ?? "erro"})`);
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Falha ao reenviar");
+            } finally {
+              setSending(false);
+              onDone();
+            }
+          })();
+        }}
+      >
+        {sending ? "Enviando…" : "Reenviar ao CRM"}
+      </Button>
+    </div>
+  );
+}
+
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="grid grid-cols-[150px_1fr] gap-2 border-b border-border pb-1">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span>{value || "—"}</span>
+      <span className="break-words">{value || "—"}</span>
     </div>
   );
 }
