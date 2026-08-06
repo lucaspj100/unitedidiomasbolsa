@@ -79,10 +79,13 @@ export function classifyLead(a: Partial<QualificationAnswers>): Classificacao {
 
   const base = baseByDecisao();
   const strong = isStrongProfile(a);
+  const urgente = hasUrgency(a.prazo_inicio);
+  const semPrevisao = a.prazo_inicio === PRAZO_INDEFINIDO;
 
   if (fit === "positivo") {
     // bom fit financeiro mantém ou melhora se houver perfil forte
-    if (base === "morno" && strong) return "quente";
+    if (base === "quente" && semPrevisao && !urgente) return "morno";
+    if (base === "morno" && (strong || urgente)) return "quente";
     if (base === "frio" && strong) return "morno";
     if (base === "curioso" && strong) return "morno";
     return base;
@@ -90,7 +93,7 @@ export function classifyLead(a: Partial<QualificationAnswers>): Classificacao {
 
   // talvez: depende do perfil
   if (strong) {
-    if (base === "quente") return "morno"; // cautela: hesitação financeira
+    if (base === "quente") return urgente ? "quente" : "morno"; // cautela: hesitação financeira
     if (base === "morno") return "morno";
     return "frio";
   }
@@ -101,7 +104,9 @@ export function classifyLead(a: Partial<QualificationAnswers>): Classificacao {
 export function isHighPriority(a: Partial<QualificationAnswers>): boolean {
   const fit = classifyFinanceiro(a.alinhamento_financeiro);
   if (fit === "sem_fit") return false;
+  if (hasUrgency(a.prazo_inicio) && a.decisao_entrevista === "Sim, tenho interesse real") return true;
   if (a.perdeu_oportunidade === "Sim") return true;
+
   if (a.motivo_ingles === "Crescimento profissional") return true;
   if (a.motivo_ingles === "Melhor oportunidade de emprego") return true;
   const i = a.impacto_ingles;
