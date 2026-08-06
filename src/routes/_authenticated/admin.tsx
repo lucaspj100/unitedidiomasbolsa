@@ -692,7 +692,7 @@ function ClassifBadge({ value }: { value: string }) {
   return <Badge className={map[value] ?? map.curioso}>{value}</Badge>;
 }
 
-function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () => void }) {
+function LeadDetailDialog({ lead, onClose, vendor, onDone }: { lead: Lead | null; onClose: () => void; vendor?: { nome: string; slug: string } | null; onDone?: () => void }) {
   return (
     <Dialog open={!!lead} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -717,13 +717,27 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () =>
             <Row label="Última interação" value={lead.ultima_interacao ? fmtDateTime(lead.ultima_interacao) : null} />
             <Row label="Entrevista agendada" value={lead.scheduled_at ? fmtDateTime(lead.scheduled_at) : null} />
             <Row label="Origem" value={lead.origem} />
-            <Row label="external_lead_id" value={lead.id} />
-            <Row label="CRM · ID" value={lead.crm_lead_id} />
-            <Row label="CRM · Sincronização" value={lead.crm_sync_status} />
-            <Row label="CRM · Tentativas" value={lead.crm_sync_attempts != null ? String(lead.crm_sync_attempts) : null} />
-            <Row label="CRM · Última tentativa" value={lead.crm_last_attempt_at ? fmtDateTime(lead.crm_last_attempt_at) : null} />
-            <Row label="CRM · Sincronizado em" value={lead.crm_synced_at ? fmtDateTime(lead.crm_synced_at) : null} />
-            <Row label="CRM · Último erro" value={lead.crm_last_sync_error} />
+
+            <div className="mt-3 rounded-md border border-border p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <h4 className="text-sm font-semibold">Sincronização com o CRM</h4>
+                <CrmStatusBadge status={lead.crm_sync_status} crmLeadId={lead.crm_lead_id} />
+              </div>
+              <div className="grid gap-2">
+                <Row label="external_lead_id" value={lead.id} />
+                <Row label="crm_lead_id" value={lead.crm_lead_id} />
+                <Row label="crm_sync_status" value={lead.crm_sync_status} />
+                <Row label="crm_sync_attempts" value={lead.crm_sync_attempts != null ? String(lead.crm_sync_attempts) : "0"} />
+                <Row label="crm_last_attempt_at" value={lead.crm_last_attempt_at ? fmtDateTime(lead.crm_last_attempt_at) : null} />
+                <Row label="crm_synced_at" value={lead.crm_synced_at ? fmtDateTime(lead.crm_synced_at) : null} />
+                <Row label="crm_last_sync_error" value={lead.crm_last_sync_error} />
+                <Row label="public_slug" value={vendor?.slug ? `/agendar/${vendor.slug}` : null} />
+                <Row label="Vendedor vinculado" value={vendor?.nome ?? null} />
+              </div>
+              <div className="mt-3">
+                <CrmResendButton lead={lead} slug={vendor?.slug ?? null} onDone={onDone} />
+              </div>
+            </div>
           </div>
         )}
       </DialogContent>
@@ -731,52 +745,75 @@ function LeadDetailDialog({ lead, onClose }: { lead: Lead | null; onClose: () =>
   );
 }
 
-function CrmSyncCell({ lead, onDone }: { lead: Lead; onDone: () => void }) {
+const CRM_LABELS: Record<string, string> = {
+  synced: "Sincronizado",
+  pending: "Pendente",
+  syncing: "Sincronizando",
+  failed: "Falhou",
+};
+
+function CrmStatusBadge({ status, crmLeadId }: { status: string | null; crmLeadId: string | null }) {
+  const s = status ?? "pending";
+  const label = s === "pending" && !crmLeadId ? "Pendente" : (CRM_LABELS[s] ?? "Não enviado");
+  const tone =
+    s === "synced" ? "bg-success/15 text-success"
+      : s === "failed" ? "bg-destructive/15 text-destructive"
+        : s === "syncing" ? "bg-primary/15 text-primary"
+          : "bg-warning/15 text-warning";
+  return <Badge className={tone}>{label}</Badge>;
+}
+
+function useResendCrm(onDone?: () => void) {
   const resend = useServerFn(resendLeadToCrm);
   const [sending, setSending] = useState(false);
+  const run = (leadId: string, slug: string | null) => {
+    setSending(true);
+    void (async () => {
+      try {
+        const r = await resend({ data: { leadId, publicSlug: slug } });
+        if (r?.success) toast.success("Lead sincronizado com o CRM.");
+        else toast.error(`Falha na sincronização: ${r?.errorCode ?? "CRM_UNAVAILABLE"}`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Falha ao reenviar");
+      } finally {
+        setSending(false);
+        onDone?.();
+      }
+    })();
+  };
+  return { sending, run };
+}
+
+function CrmResendButton({ lead, slug, onDone, className }: { lead: Lead; slug: string | null; onDone?: () => void; className?: string }) {
+  const { sending, run } = useResendCrm(onDone);
   const status = lead.crm_sync_status ?? "pending";
-  const tone =
-    status === "synced" ? "bg-success/15 text-success"
-      : status === "failed" ? "bg-destructive/15 text-destructive"
-        : status === "syncing" ? "bg-primary/15 text-primary"
-          : "bg-warning/15 text-warning";
+  const show = status === "pending" || status === "failed" || !lead.crm_lead_id;
+  if (!show) return null;
+  return (
+    <Button size="sm" variant="outline" className={className ?? "h-8 text-xs"} disabled={sending} onClick={() => run(lead.id, slug)}>
+      {sending ? "Enviando…" : "Reenviar ao CRM"}
+    </Button>
+  );
+}
+
+function CrmSyncCell({ lead, slug, onDone }: { lead: Lead; slug: string | null; onDone: () => void }) {
   return (
     <div className="text-xs">
-      <Badge className={tone}>{status}</Badge>
-      {(lead.crm_sync_attempts ?? 0) > 0 && (
-        <div className="mt-1 text-muted-foreground">{lead.crm_sync_attempts} tentativa(s)</div>
+      <CrmStatusBadge status={lead.crm_sync_status} crmLeadId={lead.crm_lead_id} />
+      <div className="mt-1 text-muted-foreground">{lead.crm_sync_attempts ?? 0} tentativa(s)</div>
+      {lead.crm_last_attempt_at && (
+        <div className="text-muted-foreground">{fmtDateTime(lead.crm_last_attempt_at)}</div>
       )}
       {lead.crm_last_sync_error && (
-        <div className="mt-1 max-w-[180px] truncate text-muted-foreground" title={lead.crm_last_sync_error}>
+        <div className="mt-1 max-w-[180px] truncate text-destructive" title={lead.crm_last_sync_error}>
           {lead.crm_last_sync_error}
         </div>
       )}
-      <Button
-        size="sm"
-        variant="outline"
-        className="mt-1 h-7 text-xs"
-        disabled={sending}
-        onClick={() => {
-          setSending(true);
-          void (async () => {
-            try {
-              const r = await resend({ data: { leadId: lead.id } });
-              if (r?.success) toast.success("Lead reenviado ao CRM");
-              else toast.error(`Não foi possível reenviar (${r?.errorCode ?? "erro"})`);
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : "Falha ao reenviar");
-            } finally {
-              setSending(false);
-              onDone();
-            }
-          })();
-        }}
-      >
-        {sending ? "Enviando…" : "Reenviar ao CRM"}
-      </Button>
+      <CrmResendButton lead={lead} slug={slug} onDone={onDone} className="mt-1 h-7 text-xs" />
     </div>
   );
 }
+
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
