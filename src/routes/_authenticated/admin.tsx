@@ -64,6 +64,7 @@ type Lead = {
   crm_last_sync_error: string | null;
   crm_synced_at: string | null;
   crm_last_attempt_at: string | null;
+  vendedor_id: string | null;
 };
 
 type Slot = { id: string; scheduled_at: string; lead_id: string | null; notes: string | null; vendedor_id: string | null };
