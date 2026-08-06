@@ -96,6 +96,7 @@ export type Database = {
           nome: string
           origem: string
           perdeu_oportunidade: string | null
+          prazo_inicio: string | null
           profissao: string | null
           respostas_json: Json
           scheduled_at: string | null
@@ -122,6 +123,7 @@ export type Database = {
           nome: string
           origem?: string
           perdeu_oportunidade?: string | null
+          prazo_inicio?: string | null
           profissao?: string | null
           respostas_json?: Json
           scheduled_at?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           nome?: string
           origem?: string
           perdeu_oportunidade?: string | null
+          prazo_inicio?: string | null
           profissao?: string | null
           respostas_json?: Json
           scheduled_at?: string | null
