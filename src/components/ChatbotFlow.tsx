@@ -193,11 +193,14 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug
       const args = { p_id: leadId, p_data: payload } as unknown as { p_id: string; p_data: never };
       const { data, error } = await supabase.rpc("save_lead_progress", args);
       if (error) throw error;
+      const id = typeof data === "string" ? data : leadId;
       if (typeof data === "string" && !leadId) setLeadId(data);
+      // Sincroniza com o CRM só depois de existir o ID local (external_lead_id).
+      if (id) scheduleCrmSync(id, Boolean(opts?.status && opts.status !== "Formulário incompleto"));
     } catch (e) {
       console.error("save_lead_progress", e);
     }
-  }, [answers, leadId, vendedorId, vendedorNome]);
+  }, [answers, leadId, vendedorId, vendedorNome, scheduleCrmSync]);
 
   function advanceWith(userText: string, fieldValue: string, field: keyof QualificationAnswers) {
     const next = stepIndex + 1;
