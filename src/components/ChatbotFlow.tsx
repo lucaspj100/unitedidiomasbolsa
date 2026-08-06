@@ -333,6 +333,7 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug
         { from: "bot", text: "Em breve você receberá as informações para participar." },
       ]);
       setStepIndex(FLOW.length - 1);
+      scheduleCrmSync(leadId, true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Não foi possível agendar.";
       toast.error(msg);
