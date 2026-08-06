@@ -168,13 +168,20 @@ function LeadsTab() {
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
   const [viewLead, setViewLead] = useState<Lead | null>(null);
+  const [vendors, setVendors] = useState<Record<string, { nome: string; slug: string }>>({});
 
   useEffect(() => { void load(); }, []);
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase.from("leads").select("*").order("ultima_interacao", { ascending: false });
+    const [{ data, error }, { data: vs }] = await Promise.all([
+      supabase.from("leads").select("*").order("ultima_interacao", { ascending: false }),
+      supabase.from("vendedores").select("id,nome,slug"),
+    ]);
     if (error) toast.error(error.message);
     else setLeads((data ?? []) as Lead[]);
+    const map: Record<string, { nome: string; slug: string }> = {};
+    for (const v of vs ?? []) map[v.id] = { nome: v.nome, slug: v.slug };
+    setVendors(map);
     setLoading(false);
   }
 
