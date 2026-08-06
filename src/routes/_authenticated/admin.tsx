@@ -255,13 +255,14 @@ function LeadsTab() {
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Etapa</th>
               <th className="px-3 py-2">Agendada</th>
+              <th className="px-3 py-2">CRM</th>
               <th className="px-3 py-2">Última int.</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
-            {!loading && filtered.length === 0 && (<tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">Nenhum lead encontrado.</td></tr>)}
+            {loading && (<tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>)}
+            {!loading && filtered.length === 0 && (<tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">Nenhum lead encontrado.</td></tr>)}
             {filtered.map((l) => (
               <tr key={l.id} className="border-t border-border align-top hover:bg-muted/30">
                 <td className="px-3 py-2">
