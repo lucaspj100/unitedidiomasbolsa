@@ -292,7 +292,7 @@ function LeadsTab() {
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{l.etapa_atual ?? "—"}</td>
                 <td className="px-3 py-2 text-xs">{l.scheduled_at ? fmtDateTime(l.scheduled_at) : "—"}</td>
-                <td className="px-3 py-2"><CrmSyncCell lead={l} onDone={() => void load()} /></td>
+                <td className="px-3 py-2"><CrmSyncCell lead={l} slug={l.vendedor_id ? vendors[l.vendedor_id]?.slug ?? null : null} onDone={() => void load()} /></td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{l.ultima_interacao ? fmtDateTime(l.ultima_interacao) : "—"}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
