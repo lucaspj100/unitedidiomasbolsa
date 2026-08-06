@@ -180,9 +180,14 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
     const nextStep = FLOW[next];
     void persist({ [field]: fieldValue } as Partial<QualificationAnswers>, { etapa: String(field) });
     if (nextStep && "label" in nextStep && nextStep.label) {
-      setTimeout(() => setMessages((m) => [...m, { from: "bot", text: nextStep.label! }]), 350);
+      const pre = "pre" in nextStep && nextStep.pre ? nextStep.pre : [];
+      pre.forEach((text, i) => {
+        setTimeout(() => setMessages((m) => [...m, { from: "bot", text }]), 350 + i * 700);
+      });
+      setTimeout(() => setMessages((m) => [...m, { from: "bot", text: nextStep.label! }]), 350 + pre.length * 700);
     }
   }
+
 
   function startFlow() {
     setStepIndex(1);
