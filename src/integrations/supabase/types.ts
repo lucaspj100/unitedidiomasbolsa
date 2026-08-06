@@ -83,6 +83,12 @@ export type Database = {
           alta_prioridade: boolean
           cidade_estado: string | null
           classificacao_lead: string
+          crm_last_attempt_at: string | null
+          crm_last_sync_error: string | null
+          crm_lead_id: string | null
+          crm_sync_attempts: number
+          crm_sync_status: string
+          crm_synced_at: string | null
           data_cadastro: string
           decisao_entrevista: string | null
           email: string
@@ -110,6 +116,12 @@ export type Database = {
           alta_prioridade?: boolean
           cidade_estado?: string | null
           classificacao_lead?: string
+          crm_last_attempt_at?: string | null
+          crm_last_sync_error?: string | null
+          crm_lead_id?: string | null
+          crm_sync_attempts?: number
+          crm_sync_status?: string
+          crm_synced_at?: string | null
           data_cadastro?: string
           decisao_entrevista?: string | null
           email: string
@@ -137,6 +149,12 @@ export type Database = {
           alta_prioridade?: boolean
           cidade_estado?: string | null
           classificacao_lead?: string
+          crm_last_attempt_at?: string | null
+          crm_last_sync_error?: string | null
+          crm_lead_id?: string | null
+          crm_sync_attempts?: number
+          crm_sync_status?: string
+          crm_synced_at?: string | null
           data_cadastro?: string
           decisao_entrevista?: string | null
           email?: string
