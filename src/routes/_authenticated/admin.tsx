@@ -307,7 +307,13 @@ function LeadsTab() {
         </table>
       </div>
 
-      <LeadDetailDialog lead={viewLead} onClose={() => setViewLead(null)} />
+      <LeadDetailDialog
+        lead={viewLead}
+        vendor={viewLead?.vendedor_id ? vendors[viewLead.vendedor_id] ?? null : null}
+        onDone={() => void load()}
+        onClose={() => setViewLead(null)}
+      />
+
     </div>
   );
 }
