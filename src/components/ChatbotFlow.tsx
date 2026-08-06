@@ -262,9 +262,11 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null }: ChatbotF
       const nome = (answers.nome ?? "").split(" ")[0];
       setMessages((m) => [
         ...m,
-        { from: "bot", text: `Perfeito, ${nome}! Seu perfil foi aprovado para a etapa de entrevista.` },
-        { from: "bot", text: "A conversa dura cerca de 40 a 45 minutos, é online e sem compromisso. Escolha abaixo um horário disponível nos próximos dias para concluir sua pré-aprovação." },
+        { from: "bot", text: `Boa notícia, ${nome}! Seu perfil foi pré-aprovado para a etapa de entrevista da bolsa.` },
+        { from: "bot", text: "A conversa é online, dura de 40 a 45 minutos, e nela você entende a metodologia, os valores e qual condição de bolsa pode ser liberada no seu caso." },
+        { from: "bot", text: "As vagas dessa etapa são limitadas por consultor. Escolha abaixo o melhor horário para você:" },
       ]);
+
       const rpc = vendedorId
         ? supabase.rpc("get_available_slots_by_vendedor", { p_vendedor_id: vendedorId })
         : supabase.rpc("get_available_slots");
