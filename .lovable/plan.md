@@ -1,51 +1,42 @@
-## Plano de correção
+# Login travado em "Carregando..." — diagnóstico e correção
 
-### 1) Horários por vendedor
+## O que está acontecendo
 
-**Banco** (migração):
-- `interview_slots`: adicionar trigger `BEFORE INSERT` que exige `vendedor_id NOT NULL` para novos slots (mantém legados intactos).
-- Adicionar índice único `(vendedor_id, scheduled_at) WHERE lead_id IS NULL` para impedir duplicidade do mesmo vendedor.
-- Atualizar RPC `get_available_slots` (legado, usado em `/`) para retornar `WHERE vendedor_id IS NULL` apenas (corta o "vazamento" de slots globais para outros vendedores). `get_available_slots_by_vendedor` já filtra corretamente.
-- Adicionar coluna `vendedores.must_change_password BOOLEAN DEFAULT true`.
+O problema não está no código do site. Reproduzi uma tentativa de login direto no servidor:
+a requisição de login fica pendurada e nunca responde (esgotou 25 segundos sem resposta).
 
-**Admin — aba Horários** (`src/routes/_authenticated/admin.tsx`):
-- Adicionar `<Select>` obrigatório "Vendedor" antes de cadastrar horário.
-- Listagem passa a mostrar coluna "Vendedor" e a filtrar por vendedor.
-- Insert passa `vendedor_id` selecionado.
+Verificações feitas agora:
 
-**Vendedor — Minha disponibilidade**: já correto (insere com `vendedor_id: vendedor.id`). Sem mudanças.
+- A porta de entrada do login responde (o serviço está de pé).
+- A ligação entre o serviço de login e o banco de dados **não responde** (tempo esgotado).
+- A verificação de saúde do banco também não responde.
 
-**Link público `/agendar/$slug`**: já busca apenas slots do vendedor via RPC. Sem mudanças.
+Ou seja: o serviço de login está aceitando a conexão, mas trava ao consultar o banco.
+Como a tela só sai de "Carregando..." quando a resposta chega, ela fica presa para sempre —
+para você e para todos os consultores. É o mesmo tipo de instabilidade do episódio anterior,
+agora afetando a camada de banco.
 
-### 2) Login obrigatório dos vendedores
+## O que farei
 
-Substituir o convite por magic-link (que loga sem senha) por **senha provisória** definida pelo admin:
+1. Reiniciar o servidor do backend (pedirei sua aprovação — o serviço fica alguns minutos indisponível).
+   Isso não apaga, altera nem recria nada: leads, consultores, horários, contas e regras de acesso permanecem intactos.
+2. Aguardar o backend voltar a ficar saudável, verificando o estado repetidamente.
+3. Refazer o teste real de login contra o servidor e confirmar que ele responde em vez de travar.
+4. Conferir que os dados continuam lá (contagem de leads, consultores e horários).
 
-**Server function** (`src/lib/vendedores.functions.ts`):
-- Substituir `inviteVendedor` por `createVendedorAccount({ email, password })` usando `supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true })`. Após criar, marca `vendedores.must_change_password = true` (o trigger `link_vendedor_on_signup` já vincula `user_id` por email).
-- Nova `resetVendedorPassword({ vendedorId, password })` para admin redefinir.
+## Melhoria opcional na tela de login
 
-**Admin — aba Equipe**:
-- Trocar botão "Cadastrar e enviar convite" por formulário com campo "Senha provisória" (com botão "Gerar"). Após criar, exibe a senha em destaque com botão copiar e instrução "envie ao vendedor por WhatsApp".
-- Ação "Reenviar convite" vira "Resetar senha" (gera nova senha provisória, marca `must_change_password=true`).
-- Badge "aguardando definir senha" quando `must_change_password=true`.
+Hoje, se o servidor demorar, o botão fica "Carregando..." indefinidamente, sem explicação.
+Posso adicionar um limite de espera (cerca de 20 segundos) que mostra uma mensagem clara —
+"O servidor não respondeu, tente novamente em instantes" — e libera o botão.
+Isso não conserta a causa, mas evita a sensação de travamento total em futuras instabilidades.
+Me diga se quer que eu inclua isso junto.
 
-**Tela `/auth`**:
-- Já é login email+senha. Após login bem-sucedido, se for vendedor com `must_change_password=true`, redirecionar para nova rota `/_authenticated/trocar-senha` (forçada) antes de qualquer outra navegação.
-- Bloquear vendedor inativo no login (mensagem "Seu acesso está inativo…").
+## Detalhes técnicos
 
-**Nova rota `/_authenticated/trocar-senha`**: formulário simples (nova senha + confirmação) que chama `supabase.auth.updateUser({ password })` e seta `vendedores.must_change_password=false`. Enquanto `must_change_password=true`, o painel `/vendedor` redireciona para essa rota.
-
-**Proteção de rotas**: `_authenticated/route.tsx` já força login. Sem mudanças (link público `/agendar/$slug` continua aberto).
-
-### Fora de escopo (não pedido explicitamente)
-- Migração da tabela `interview_slots` para o novo modelo `disponibilidade_vendedor` (dia da semana + janela recorrente) e tabela separada `bloqueios_agenda`. Mantém o modelo atual de slots individuais, que já satisfaz "cada slot pertence a um vendedor".
-- Tela "Esqueci minha senha" pública via email (depende de infra de email). Por enquanto só admin redefine.
-
-### Ordem
-1. Migração (trigger, índice único, coluna `must_change_password`, RPC).
-2. `vendedores.functions.ts` (create/reset com senha).
-3. Admin: aba Horários com vendedor selecionável; aba Equipe com fluxo de senha.
-4. `/auth` + rota `/trocar-senha` + redirecionamento.
-
-Confirma?
+- `POST /auth/v1/token?grant_type=password` → sem resposta (timeout 25s, exit 28).
+- `GET /auth/v1/health` → 401 rápido (0,08s): gateway vivo.
+- `cloud_status` → `backend_unreachable_db: auth→database probe: context deadline exceeded`.
+- `db_health` → `metrics_unavailable: Client.Timeout`.
+- Ação: `supabase--restart`, depois `cloud_status` em polling até `ACTIVE_HEALTHY`, seguido de
+  novo teste de token e `read_query` de contagens. Nenhuma migração, nenhuma alteração de RLS ou auth.
