@@ -20,6 +20,8 @@ import { syncScholarshipLeadToCrm } from "@/lib/crm-sync.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+// Vídeo institucional de abertura (CDN)
+import introVideoAsset from "@/assets/united-intro.mp4.asset.json";
 import {
   classifyLead,
   isHighPriority,
