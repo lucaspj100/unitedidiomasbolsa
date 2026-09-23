@@ -20,6 +20,9 @@ import { syncScholarshipLeadToCrm } from "@/lib/crm-sync.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+// Vídeo institucional de abertura (CDN)
+import introVideoAsset from "@/assets/united-intro.mp4.asset.json";
+const INTRO_VIDEO_URL: string | null = introVideoAsset.url;
 import {
   classifyLead,
   isHighPriority,
@@ -458,7 +461,6 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug
   );
 }
 
-const INTRO_VIDEO_URL: string | null = null;
 
 const DIFFERENTIALS = [
   { label: "Aulas ao vivo e online", icon: Laptop },
