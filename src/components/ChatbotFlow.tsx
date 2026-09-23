@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GraduationCap, Send, CalendarCheck, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  Award,
+  CalendarCheck,
+  CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  ExternalLink,
+  GraduationCap,
+  Laptop,
+  Loader2,
+  MessagesSquare,
+  Send,
+  UsersRound,
+} from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { syncScholarshipLeadToCrm } from "@/lib/crm-sync.functions";
@@ -371,8 +385,16 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-3 sm:px-4 min-h-0">
-        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-4">
-          {messages.map((m, i) => (<Bubble key={i} from={m.from}>{m.text}</Bubble>))}
+        <div ref={scrollRef} className={`flex min-h-0 flex-1 flex-col gap-3 py-4 ${step?.kind === "intro" ? "overflow-y-auto sm:py-7" : "overflow-y-auto"}`}>
+          {step?.kind === "intro" ? (
+            <IntroPresentation
+              branding={branding}
+              vendedorNome={vendedorNome}
+              onStart={startFlow}
+            />
+          ) : (
+            messages.map((m, i) => (<Bubble key={i} from={m.from}>{m.text}</Bubble>))
+          )}
 
           {step?.kind === "schedule" && !bookedAt && (
             <div className="shadow-card mt-3 rounded-2xl border border-border bg-card p-4">
@@ -396,12 +418,8 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug
           {showControls && <div aria-hidden className="shrink-0" style={{ height: "1rem" }} />}
         </div>
 
-        {showControls && (
+        {showControls && step?.kind !== "intro" && (
           <div className="-mx-3 border-t border-border bg-card/95 px-3 py-3 backdrop-blur sm:-mx-4 sm:px-4">
-            {step?.kind === "intro" && (
-              <Button size="lg" className="w-full" onClick={startFlow}>Começar avaliação</Button>
-            )}
-
             {step?.kind === "input" && (
               <form onSubmit={handleTextSubmit} className="flex gap-2">
                 <Input autoFocus value={textValue} type={step.type ?? "text"} placeholder={step.placeholder}
@@ -437,6 +455,114 @@ export function ChatbotFlow({ vendedorId = null, vendedorNome = null, publicSlug
         )}
       </main>
     </div>
+  );
+}
+
+const INTRO_VIDEO_URL: string | null = null;
+
+const DIFFERENTIALS = [
+  { label: "Aulas ao vivo e online", icon: Laptop },
+  { label: "Turmas reduzidas", icon: UsersRound },
+  { label: "Conversação", icon: MessagesSquare },
+  { label: "Horários flexíveis", icon: CalendarClock },
+  { label: "Preparação para TOEFL", icon: Award },
+] as const;
+
+function IntroPresentation({
+  branding,
+  vendedorNome,
+  onStart,
+}: {
+  branding: Branding;
+  vendedorNome: string | null;
+  onStart: () => void;
+}) {
+  return (
+    <section className="intro-card mx-auto w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      <div className="px-5 py-6 text-center sm:px-8 sm:py-8">
+        {branding.logo_url ? (
+          <img
+            src={branding.logo_url}
+            alt={branding.brand_name}
+            className="mx-auto mb-5 max-h-14 w-auto max-w-48 object-contain"
+          />
+        ) : (
+          <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <GraduationCap className="h-6 w-6" />
+          </div>
+        )}
+
+        <h1 className="text-2xl font-bold leading-tight text-united-navy sm:text-3xl">
+          Processo de Bolsa <span className="block text-primary">United Idiomas</span>
+        </h1>
+        <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Antes de seguir para a entrevista, queremos entender rapidamente o seu momento e verificar se as condições de bolsa fazem sentido para você.
+        </p>
+
+        <div className="mt-5 grid grid-cols-2 gap-2.5">
+          <div className="flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2.5 text-xs font-semibold text-secondary-foreground">
+            <Clock3 className="h-4 w-4 shrink-0 text-primary" />
+            <span>Menos de 2 minutos</span>
+          </div>
+          <div className="flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2.5 text-xs font-semibold text-secondary-foreground">
+            <Laptop className="h-4 w-4 shrink-0 text-primary" />
+            <span>Pré-seleção online</span>
+          </div>
+        </div>
+
+        <div className="mt-7 border-t border-border pt-7">
+          <h2 className="text-lg font-semibold text-united-navy">Conheça um pouco da United</h2>
+          {INTRO_VIDEO_URL ? (
+            <div className="mx-auto mt-4 w-full max-w-64 overflow-hidden rounded-xl border border-border bg-united-navy shadow-bubble">
+              <video
+                src={INTRO_VIDEO_URL}
+                controls
+                playsInline
+                preload="metadata"
+                className="aspect-[9/16] w-full object-contain"
+                aria-label="Vídeo de apresentação da United Idiomas"
+              />
+            </div>
+          ) : (
+            <div className="mx-auto mt-4 flex aspect-[9/16] w-full max-w-64 items-center justify-center rounded-xl border border-dashed border-border bg-secondary px-6 text-sm text-muted-foreground">
+              Vídeo de apresentação
+            </div>
+          )}
+        </div>
+
+        <div className="mt-7 text-left">
+          <h2 className="text-center text-lg font-semibold text-united-navy">Inglês executivo para adultos</h2>
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
+            {DIFFERENTIALS.map(({ label, icon: Icon }, index) => (
+              <div
+                key={label}
+                className={`flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-secondary px-3 py-3 text-sm font-medium text-secondary-foreground ${index === DIFFERENTIALS.length - 1 ? "col-span-2" : ""}`}
+              >
+                <Icon className="h-4 w-4 shrink-0 text-primary" />
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-7 grid gap-3">
+          <Button asChild variant="outline" size="lg" className="h-11 w-full">
+            <a href="https://www.unitedidiomas.com/" target="_blank" rel="noopener noreferrer">
+              Visitar site oficial <ExternalLink className="h-4 w-4" />
+            </a>
+          </Button>
+          <p className="text-sm font-medium text-united-navy">A avaliação leva menos de 2 minutos.</p>
+          <Button size="lg" className="h-12 w-full text-base font-semibold shadow-cta" onClick={onStart}>
+            Começar avaliação <ChevronRight className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {vendedorNome && (
+          <p className="mt-4 text-xs text-muted-foreground">Atendimento com {vendedorNome}</p>
+        )}
+      </div>
+      <div className="h-1 bg-united-detail" aria-hidden />
+    </section>
   );
 }
 

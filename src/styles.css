@@ -36,23 +36,24 @@
   --color-bot-bubble: var(--bot-bubble);
   --color-user-bubble: var(--user-bubble);
   --color-user-bubble-foreground: var(--user-bubble-foreground);
+  --color-united-navy: var(--united-navy);
 }
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.985 0.005 240);
+  --background: oklch(0.975 0.008 250);
   --foreground: oklch(0.18 0.04 252);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0.04 252);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.04 252);
-  --primary: oklch(0.42 0.13 258);
+  --primary: oklch(0.58 0.22 257);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.015 250);
-  --secondary-foreground: oklch(0.25 0.06 258);
+  --secondary: oklch(0.97 0.012 250);
+  --secondary-foreground: oklch(0.28 0.07 255);
   --muted: oklch(0.96 0.01 250);
   --muted-foreground: oklch(0.52 0.03 252);
-  --accent: oklch(0.62 0.18 258);
+  --accent: oklch(0.58 0.22 257);
   --accent-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
@@ -62,13 +63,16 @@
   --warning-foreground: oklch(0.2 0.05 75);
   --border: oklch(0.9 0.015 250);
   --input: oklch(0.9 0.015 250);
-  --ring: oklch(0.62 0.18 258);
+  --ring: oklch(0.58 0.22 257);
   --bot-bubble: oklch(1 0 0);
   --user-bubble: oklch(0.42 0.13 258);
   --user-bubble-foreground: oklch(0.99 0 0);
-  --gradient-hero: linear-gradient(135deg, oklch(0.42 0.13 258), oklch(0.62 0.18 258));
+  --united-navy: oklch(0.28 0.105 255);
+  --gradient-hero: linear-gradient(135deg, oklch(0.25 0.095 255), oklch(0.46 0.17 257));
+  --gradient-united-detail: linear-gradient(90deg, var(--united-navy), var(--primary));
   --shadow-bubble: 0 2px 12px -4px oklch(0.18 0.04 252 / 0.12);
-  --shadow-card: 0 10px 30px -12px oklch(0.42 0.13 258 / 0.18);
+  --shadow-card: 0 18px 50px -24px oklch(0.28 0.105 255 / 0.24);
+  --shadow-cta: 0 10px 24px -12px oklch(0.58 0.22 257 / 0.62);
 }
 
 @layer base {
@@ -90,4 +94,10 @@
 }
 @utility shadow-card {
   box-shadow: var(--shadow-card);
+}
+@utility shadow-cta {
+  box-shadow: var(--shadow-cta);
+}
+@utility bg-united-detail {
+  background-image: var(--gradient-united-detail);
 }
